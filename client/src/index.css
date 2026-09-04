@@ -114,17 +114,16 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .tbl-wrap { overflow-x: auto; }
 table { width: 100%; min-width: 1000px; border-collapse: collapse; font-size: 15px; }
 thead { background: var(--c-primary-soft); }
-th { padding: 10px 12px; border-bottom: 2px solid var(--c-primary); color: var(--c-primary-dark); font-size: 14px; line-height: 20px; font-weight: 600; letter-spacing: .2px; text-align: left; text-transform: uppercase; white-space: nowrap; }
-th:nth-child(n+4) { text-align: right; }
-td { padding: 10px 12px; border-bottom: 1px solid var(--c-border); color: var(--c-text); line-height: 20px; white-space: nowrap; }
+th { padding: 10px 12px; border-bottom: 2px solid var(--c-primary); color: var(--c-primary-dark); font-size: 14px; line-height: 20px; font-weight: 600; letter-spacing: .2px; text-align: center; text-transform: uppercase; white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--c-border); color: var(--c-text); line-height: 20px; white-space: nowrap; text-align: center; }
 tbody tr { cursor: pointer; transition: background-color 150ms; }
 tbody tr:hover { background: #f4f6fa; }
 tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--c-primary); outline-offset: -2px; }
 .rank-cell { width: 72px; color: var(--c-text-2); font-variant-numeric: tabular-nums; }
 .facility-code, .claim-id { color: var(--c-primary-dark); font-weight: 700; }
-.num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+.num-cell { font-variant-numeric: tabular-nums; }
 .money-cell { color: var(--c-primary-dark); font-weight: 600; }
-.score-cell { display: grid; grid-template-columns: 84px max-content; align-items: center; justify-content: end; gap: 8px; font-variant-numeric: tabular-nums; }
+.score-cell { display: grid; grid-template-columns: 84px max-content; align-items: center; justify-content: center; gap: 8px; font-variant-numeric: tabular-nums; }
 .score-track { display: inline-block; width: 84px; height: 6px; overflow: hidden; border-radius: 100px; background: var(--c-bg); }
 .score-track span { display: block; height: 100%; border-radius: 100px; background: var(--c-primary); }
 .risk-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 9px; border-radius: 100px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .03em; }
@@ -140,8 +139,8 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .ghost-button:disabled { opacity: .48; cursor: not-allowed; }
 .about-panel { margin-top: 24px; padding: 20px; }
 .section-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--c-primary); font-size: 14px; font-weight: 700; letter-spacing: .12em; }
-.about-list { margin: 4px 0 0; padding-left: 22px; columns: 2; column-gap: 40px; font-size: 14px; line-height: 22px; color: var(--c-text); }
-.about-list li { margin-bottom: 12px; break-inside: avoid; }
+.about-list { margin: 4px 0 0; padding-left: 20px; columns: 2; column-gap: 40px; list-style: decimal outside; font-size: 13px; line-height: 19px; color: var(--c-text); }
+.about-list li { margin-bottom: 10px; padding-left: 2px; break-inside: avoid; }
 .about-list b { color: var(--c-primary-dark); font-weight: 600; }
 .about-divider { border: 0; border-top: 1px solid var(--c-primary); margin: 20px 0 16px; }
 .about-footer { text-align: center; font-size: 12px; line-height: 18px; color: var(--c-text-2); max-width: 840px; margin: 0 auto; }
