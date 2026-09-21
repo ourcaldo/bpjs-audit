@@ -185,27 +185,60 @@ async function startServer() {
     try {
       await client.query("BEGIN");
 
-      // baseline LOS dengan fallback hierarkis
+      // baseline LOS — hierarki region-aware (engine/run_db.py versi d76606f):
+      // parent chain region → cbg → cbg×region (shrinkage w=n/(n+k), k=10),
+      // lalu fine cbg×umur×komorbid×region×kelas bila group >= k.
       const ageband = umur < 1 ? null : umur <= 40 ? 0 : umur <= 60 ? 1 : umur <= 75 ? 2 : 3;
       const comorbband = n_kronis <= 1 ? 0 : n_kronis <= 3 ? 1 : n_kronis <= 5 ? 2 : 3;
+      const SHRINK_K = 10;
       const statsSql = (where: string, params: unknown[]) => client.query(`
         SELECT COUNT(*)::int AS n,
                percentile_cont(0.5) WITHIN GROUP (ORDER BY ${LOS_EXPR}) AS med,
                percentile_cont(0.9) WITHIN GROUP (ORDER BY ${LOS_EXPR}) AS p90
         ${BASE_FROM} AND ${where}`, params);
-      let r = await statsSql(`k.cbg = $1 AND ${AGE_EXPR} = $2 AND ${COM_EXPR} = $3`,
-        [cbg, ageband, comorbband]);
-      let n = r.rows[0].n, peer_med = r.rows[0].med, peer_p90 = r.rows[0].p90;
-      let fallback = "fine";
-      if (!(n >= 10)) {
-        r = await statsSql("k.cbg = $1", [cbg]);
-        n = r.rows[0].n; peer_med = r.rows[0].med; peer_p90 = r.rows[0].p90;
-        fallback = "dx_only";
+      const fk = await client.query(
+        "SELECT region::int AS region, kelas_rs FROM faskes WHERE provider = $1",
+        [provider]);
+      const faskesCtx = fk.rows[0] ?? { region: null, kelas_rs: null };
+
+      // parent: region → (blend cbg → cbg×region)
+      let g0 = await statsSql("TRUE", []);
+      let peer_med = Number(g0.rows[0].med), peer_p90 = Number(g0.rows[0].p90);
+      if (faskesCtx.region !== null) {
+        const rr = await statsSql("k.region = $1", [faskesCtx.region]);
+        if (rr.rows[0] && rr.rows[0].med !== null) {
+          peer_med = Number(rr.rows[0].med); peer_p90 = Number(rr.rows[0].p90);
+        }
       }
-      if (!(n >= 10)) {
-        r = await statsSql("TRUE", []);
-        n = r.rows[0].n; peer_med = r.rows[0].med; peer_p90 = r.rows[0].p90;
-        fallback = "global";
+      const dxr = await statsSql("k.cbg = $1", [cbg]);
+      if (dxr.rows[0].med !== null) {
+        const w = dxr.rows[0].n / (dxr.rows[0].n + SHRINK_K);
+        peer_med = w * Number(dxr.rows[0].med) + (1 - w) * peer_med;
+        peer_p90 = w * Number(dxr.rows[0].p90) + (1 - w) * peer_p90;
+      }
+      let fallback = "parent";
+      if (faskesCtx.region !== null) {
+        const dr = await statsSql("k.cbg = $1 AND k.region = $2",
+          [cbg, faskesCtx.region]);
+        if (dr.rows[0].med !== null) {
+          const w = dr.rows[0].n / (dr.rows[0].n + SHRINK_K);
+          peer_med = w * Number(dr.rows[0].med) + (1 - w) * peer_med;
+          peer_p90 = w * Number(dr.rows[0].p90) + (1 - w) * peer_p90;
+          if (dr.rows[0].n >= SHRINK_K) fallback = "dx_region";
+        }
+      }
+      // fine group (region-aware) — bila ada, GANTI parent chain
+      // (semantik sama dengan api/main.py: return fine blend, bukan gabungan)
+      if (faskesCtx.region !== null && faskesCtx.kelas_rs) {
+        const fr = await statsSql(
+          `k.cbg = $1 AND ${AGE_EXPR} = $2 AND ${COM_EXPR} = $3 AND k.region = $4 AND k.kelas_rs = $5`,
+          [cbg, ageband, comorbband, faskesCtx.region, faskesCtx.kelas_rs]);
+        if (fr.rows[0].med !== null && fr.rows[0].n >= SHRINK_K) {
+          const w = fr.rows[0].n / (fr.rows[0].n + SHRINK_K);
+          peer_med = w * Number(fr.rows[0].med) + (1 - w) * peer_med;
+          peer_p90 = w * Number(fr.rows[0].p90) + (1 - w) * peer_p90;
+          fallback = "fine";
+        }
       }
       const excess = Math.max(los - peer_med, 0);
       const outlier = los > peer_p90 ? 1 : 0;
