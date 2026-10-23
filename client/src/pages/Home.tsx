@@ -267,7 +267,8 @@ function suggestVerdict(p: Progress): string {
   if (p.flagged === 0 || p.total === 0) return "";
   const checked = p.fraud + p.admin + p.clean + p.review;
   if (checked === 0) return "";
-  if (p.fraud === checked) return "confirmed";
+  if (p.fraud === checked && checked >= 5) return "confirmed";
+  if (p.fraud === checked && checked < 5) return "needs_followup";
   if (p.review > 0 && p.fraud + p.admin === 0) return "needs_followup";
   if (p.fraud > 0) return "partially";
   if (p.admin > 0 && p.clean + p.review === 0) return "administrative";
@@ -280,14 +281,22 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
   const suggestion = suggestVerdict(progress);
-  const allChecked = progress.flagged > 0 && progress.flagged >= progress.total;
-  const show = allChecked && !dismissed;
+  // bar muncul setelah klaim PERTAMA ditandai - sistem tidak pernah menahan
+  // keputusan, hanya selalu menyatakan cakupan dasarnya
+  const show = progress.flagged > 0 && !dismissed;
+  const coverage = progress.total ? progress.flagged / progress.total : 0;
+  const lowCoverage = coverage < 0.9;
   useEffect(() => { setSelected(suggestion); }, [suggestion]);
   if (!show) return null;
   const save = () => {
     if (!selected) return;
     setSaving(true);
-    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected })
+    postJson<Verdict>("/api/verdicts", {
+      kode: facility.kode, verdict: selected,
+      auditor_notes: lowCoverage
+        ? `Vonis berdasarkan sampel: ${progress.flagged} dari ${progress.total} klaim diperiksa.`
+        : null,
+    })
       .then(() => { setDismissed(true); onSaved(); })
       .catch(() => setSaving(false))
       .finally(() => setSaving(false));
@@ -295,7 +304,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   return (
     <div className="verdict-bar" role="dialog" aria-label="Usulan vonis faskes">
       <span className="vb-icon"><ClipboardCheck size={18} /></span>
-      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini — ubah kapan saja, atau konfirmasi sekarang.</p>
+      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " — vonis berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
       <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
         {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
