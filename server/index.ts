@@ -93,7 +93,8 @@ async function startServer() {
   app.get("/api/faskes", ah(async (_req, res) => {
     const { rows } = await pool.query(`
       SELECT provider AS kode, peringkat::int AS peringkat,
-             skor_gabungan::float8, skor_los::float8, skor_upcoding::float8,
+             skor_gabungan::float8, skor_gabungan_rf::float8,
+             skor_los::float8, skor_upcoding::float8,
              ip_n_claims::int AS klaim_ri, op_n_claims::int AS klaim_rj,
              excess_cost_sum::float8 AS estimasi_rugi
       FROM faskes_scores ORDER BY peringkat`);
@@ -145,6 +146,49 @@ async function startServer() {
     const t = await pool.query(
       "SELECT COUNT(*)::int AS n FROM claim_evidence WHERE provider = $1", [kode]);
     res.json({ items: rows, total: t.rows[0].n, page, page_size });
+  }));
+
+  // ---- Track A: vonis auditor (feedback loop) ----
+  const VERDICTS = ["confirmed", "partially", "clean", "administrative", "needs_followup"] as const;
+
+  // riwayat vonis satu faskes
+  app.get("/api/verdicts/:kode", ah(async (req, res) => {
+    const { rows } = await pool.query(`
+      SELECT id, provider AS kode, period, verdict, auditor_notes, sample_kind,
+             decided_at
+      FROM audit_outcome WHERE provider = $1 ORDER BY decided_at DESC`, [req.params.kode]);
+    res.json({ items: rows });
+  }));
+
+  // status loop pembelajaran: jumlah vonis nyata vs ambang retrain
+  app.get("/api/verdicts", ah(async (_req, res) => {
+    const { rows } = await pool.query(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE auditor_notes IS NULL
+                              OR auditor_notes NOT LIKE '%seed demo%')::int AS real_total,
+             COUNT(*) FILTER (WHERE verdict IN ('confirmed','partially'))::int AS positive
+      FROM audit_outcome`);
+    res.json({ threshold: 100, ...rows[0] });
+  }));
+
+  // catat satu vonis auditor
+  app.post("/api/verdicts", ah(async (req, res) => {
+    const b = req.body ?? {};
+    const kode = b.kode, verdict = b.verdict;
+    if (typeof kode !== "string" || !kode)
+      return res.status(422).json({ detail: "kode faskes wajib" });
+    if (typeof verdict !== "string" || !VERDICTS.includes(verdict as never))
+      return res.status(422).json({ detail: `verdict harus salah satu: ${VERDICTS.join(", ")}` });
+    const notes = typeof b.auditor_notes === "string" ? b.auditor_notes : null;
+    const sample_kind = b.sample_kind === "random" ? "random" : "priority";
+    const ex = await pool.query("SELECT 1 FROM faskes_scores WHERE provider = $1", [kode]);
+    if (!ex.rowCount) return res.status(404).json({ detail: "faskes tidak ditemukan" });
+    const { rows } = await pool.query(`
+      INSERT INTO audit_outcome (provider, period, verdict, auditor_notes, sample_kind)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, provider AS kode, period, verdict, auditor_notes, sample_kind, decided_at`,
+      [kode, b.period ?? String(new Date().toISOString().slice(0, 7)), verdict, notes, sample_kind]);
+    res.status(201).json(rows[0]);
   }));
 
   // POST /api/klaim — input satu klaim rawat inap, langsung diskor terhadap

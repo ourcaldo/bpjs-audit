@@ -4,14 +4,18 @@ import {
   ArrowRight,
   BarChart3,
   ChevronRight,
+  ClipboardCheck,
   Eye,
   FileText,
   KeyRound,
   LockKeyhole,
   Search,
+  Send,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE ?? "";
@@ -22,11 +26,22 @@ type Faskes = {
   peringkat: number;
   kode: string;
   skor_gabungan: number;
+  skor_gabungan_rf?: number | null;
   skor_los: number | null;
   skor_upcoding: number | null;
   klaim_ri: number;
   klaim_rj: number;
   estimasi_rugi: number;
+};
+
+type Verdict = {
+  id: number;
+  kode: string;
+  period: string;
+  verdict: string;
+  auditor_notes: string | null;
+  sample_kind: string;
+  decided_at: string;
 };
 
 type Claim = {
@@ -47,6 +62,16 @@ type Stats = { faskes: number; beri_ri: number; rugi: number; klaim_ri: number; 
 
 const fetchJson = async <T,>(path: string): Promise<T> => {
   const res = await fetch(`${API}${path}`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+};
+
+const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
 };
@@ -130,7 +155,120 @@ function PriorityTable({ list, page, goPage, openDetail }: { list: Faskes[]; pag
 }
 
 function AboutPanel() {
-  return <section className="panel about-panel"><div className="section-kicker"><SlidersHorizontal size={17} /><span>TENTANG SISTEM SKORING</span></div><ol className="about-list"><li><b>Skor Gabungan</b> merupakan rata-rata skor modul yang tersedia untuk faskes (LOS dan upcoding) dan menjadi dasar peringkat prioritas audit: semakin tinggi skor, semakin awal faskes direkomendasikan untuk diperiksa.</li><li><b>Skor LOS (Prolonged Length of Stay)</b> mengukur kecenderungan perpanjangan hari rawat inap di luar kebutuhan medis, dihitung dari proporsi klaim yang melampaui P90 kelompok pembanding (peer) dan rata-rata kelebihan hari rawat.</li><li><b>Skor Upcoding</b> mengukur indikasi peningkatan beratnya kode diagnosis saat klaim, dihitung dari tiga sinyal: diagnosis saat masuk yang hilang dari diagnosis akhir, jumlah kode diagnosis yang diklaim, dan rasio nilai klaim terhadap nilai klaim sejenis.</li><li>Setiap klaim dibandingkan dengan kelompok pembanding: kode INA-CBG yang sama, rentang umur, dan tingkat komorbiditas yang serupa.</li><li>Nilai "wajar" (median) dan ambang anomali (P90) diturunkan dari statistik seluruh klaim dalam kelompok tersebut — bukan dari patokan luar. Kelompok dengan data terbatas menggunakan fallback hierarkis ke kelompok pembanding yang lebih luas.</li><li>Skor dihitung sebagai persentil gabungan sinyal pada skala 0–1.</li><li>Sinyal LOS hanya berlaku untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan nilai klaim.</li><li>Skor merupakan alat pemrioritasan audit. Penetapan status fraud tetap melalui proses pemeriksaan oleh auditor.</li><li>Ambang skor disesuaikan dengan kapasitas audit: ambang lebih rendah menangkap lebih banyak kasus (recall naik), ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik).</li><li>Data yang ditampilkan merupakan data sintetis untuk keperluan prototipe, mengikuti struktur kode INA-CBG sesuai Permenkes Nomor 26 Tahun 2021.</li></ol><div className="about-divider" /><p className="about-footer">Sistem Audit Intelligence merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
+  return <section className="panel about-panel"><div className="section-kicker"><SlidersHorizontal size={17} /><span>TENTANG SISTEM SKORING</span></div><ol className="about-list">
+    <li><b>Skor Gabungan (composite)</b> adalah rata-rata skor modul LOS dan upcoding, dihitung dari persentil sinyal pada skala 0–1, dan menjadi dasar peringkat prioritas audit. Rumusnya transparan: setiap angka dapat ditelusuri hingga klaim asal dan dihitung ulang manual — inilah jangkar auditabilitas sistem.</li>
+    <li><b>Skor LOS (Prolonged Length of Stay)</b> mengukur kecenderungan perpanjangan hari rawat inap di luar kebutuhan medis, dihitung dari proporsi klaim yang melampaui P90 kelompok pembanding (peer) dan rata-rata kelebihan hari rawat.</li>
+    <li><b>Skor Upcoding</b> mengukur indikasi peningkatan beratnya klaim, dihitung dari tiga sinyal: diagnosis masuk yang hilang dari diagnosis akhir (DxChanged), jumlah kode diagnosis yang diklaim (NDx), dan rasio nilai klaim terhadap nilai klaim sejenis (AmtRatio).</li>
+    <li><b>Skor RF (skor_gabungan_rf)</b> adalah skor kedua yang dihasilkan model Random Forest — ratusan pohon keputusan yang dilatih dari data berlabel dan memberi suara (voting) untuk setiap faskes. Saat ini base model dilatih dari data sintetis berlabel; model akan dilatih ulang dari vonis auditor nyata begitu jumlahnya cukup (±100 vonis). Skor RF berjalan di samping composite, bukan menggantikannya.</li>
+    <li><b>Divergensi dua skor</b> adalah alarm peninjauan: bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk diperiksa manusia. Composite tetap menjadi dasar peringkat; RF adalah pembanding yang terus belajar.</li>
+    <li><b>Vonis auditor (audit_outcome)</b> adalah hasil pemeriksaan nyata oleh tim audit, dicatat apa adanya dalam lima kategori: konfirmasi fraud, sebagian terkonfirmasi, bersih, masalah administratif, atau perlu tindak lanjut. Setiap vonis menjadi data latih baru — semakin banyak auditor bekerja, semakin tajam prioritas berikutnya.</li>
+    <li><b>Sampel kontrol acak</b>: setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya. Tanpa ini, model hanya belajar dari pilihan sistemnya sendiri; sampel acak menghasilkan contoh jujur dari faskes yang bersih.</li>
+    <li>Setiap klaim dibandingkan dengan kelompok pembanding: kode INA-CBG, rentang umur, tingkat komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur) yang serupa — sehingga RS tersier yang memang merawat kasus berat tidak salah terbaca sebagai anomali.</li>
+    <li>Nilai "wajar" (median) dan ambang anomali (P90) diturunkan dari statistik seluruh klaim dalam kelompok pembanding tersebut — bukan dari patokan luar. Kelompok dengan data terbatas menggunakan fallback hierarkis ke kelompok yang lebih luas.</li>
+    <li>Sinyal LOS hanya berlaku untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan nilai klaim.</li>
+    <li>Skor merupakan alat memprioritaskan audit — bukan vonis. Penetapan status fraud tetap melalui pemeriksaan oleh auditor, dan vonis itulah yang mengajari sistem.</li>
+    <li>Ambang skor disesuaikan dengan kapasitas audit: ambang lebih rendah menangkap lebih banyak kasus (recall naik), ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik).</li>
+    <li>Data yang ditampilkan merupakan data sintetis untuk keperluan prototipe, mengikuti struktur kode INA-CBG sesuai Permenkes Nomor 26 Tahun 2021. Metodologi telah diuji pada data sampel publikasi resmi BPJS (Data Sampel Reguler Edisi 2025).</li>
+  </ol><div className="about-divider" /><p className="about-footer">Sistem Audit Intelligence merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
+}
+
+// ---- Panel chat asisten (right panel) ----
+// Struktur siap untuk Track B: chat grounding pada konteks faskes terpilih.
+// Saat ini respons contoh; nanti dihubungkan ke API AI (coding review assist).
+function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolean; onClose: () => void }) {
+  const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string }[]>([
+    { role: "ai", text: `Halo! Saya bisa membantu membaca bukti audit ${facility.kode}: menjelaskan skor, merangkum pola anomali, atau menyiapkan draf catatan pemeriksaan.` },
+  ]);
+  const [input, setInput] = useState("");
+  const chips = ["Kenapa risikonya tinggi?", "Ringkas outlier LOS", "Buat draf catatan audit"];
+  const send = (text: string) => {
+    if (!text.trim()) return;
+    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "Respons contoh. Panel ini akan dihubungkan ke API asisten AI (Track B) untuk analisis klaim berbasis konteks faskes ini." }]);
+    setInput("");
+  };
+  return (
+    <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Asisten AI">
+      <div className="chat-head">
+        <div className="chat-bot-mark">AI</div>
+        <div><h4>Asisten Audit</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
+        <button className="chat-close" type="button" aria-label="Tutup asisten" onClick={onClose}><X size={18} /></button>
+      </div>
+      <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
+      <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
+        ? <div className="chat-m chat-m-ai" key={i}><span className="chat-name">Asisten Audit</span>{m.text}</div>
+        : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}</div>
+      <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} onClick={() => send(c)}>{c}</button>)}</div>
+      <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
+        <textarea rows={1} placeholder="Tanya tentang klaim ini…" value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} />
+        <button className="chat-send" type="submit" aria-label="Kirim"><Send size={16} /></button>
+      </form>
+    </aside>
+  );
+}
+
+// ---- Panel vonis auditor (Track A feedback loop) ----
+const VERDICT_OPTIONS = [
+  { value: "confirmed", label: "Konfirmasi fraud" },
+  { value: "partially", label: "Sebagian terkonfirmasi" },
+  { value: "clean", label: "Bersih" },
+  { value: "administrative", label: "Masalah administratif" },
+  { value: "needs_followup", label: "Perlu tindak lanjut" },
+];
+
+function VerdictPanel({ facility, onSaved }: { facility: Faskes; onSaved?: () => void }) {
+  const [verdicts, setVerdicts] = useState<Verdict[]>([]);
+  const [selected, setSelected] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
+  const load = () => fetchJson<{ items: Verdict[] }>(`/api/verdicts/${facility.kode}`)
+    .then((r) => setVerdicts(r.items)).catch(() => setVerdicts([]));
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [facility.kode]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    setSaving(true); setFeedback("");
+    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected, auditor_notes: notes || null })
+      .then(() => {
+        setSelected(""); setNotes("");
+        setFeedback("Vonis tersimpan — menjadi data latih model berikutnya.");
+        load(); onSaved?.();
+      })
+      .catch(() => setFeedback("Gagal menyimpan vonis."))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <section className="panel verdict-panel">
+      <div className="panel-heading"><div><h2>Vonis Auditor</h2><p>Hasil pemeriksaan dicatat apa adanya dan menjadi data latih skor RF. Ambang retrain model: 100 vonis nyata.</p></div><ClipboardCheck size={18} /></div>
+      <form className="verdict-form" onSubmit={submit}>
+        <div className="verdict-options">{VERDICT_OPTIONS.map((v) => (
+          <label className={`verdict-opt ${selected === v.value ? "opt-active" : ""}`} key={v.value}>
+            <input type="radio" name="verdict" value={v.value} checked={selected === v.value} onChange={() => setSelected(v.value)} />
+            {v.label}
+          </label>))}</div>
+        <textarea rows={2} placeholder="Catatan auditor (opsional) — dasar pemeriksaan, klaim yang ditelusuri…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <button className="primary-button" type="submit" disabled={!selected || saving}>{saving ? "Menyimpan…" : "Catat vonis"}</button>
+        {feedback && <span className="verdict-feedback">{feedback}</span>}
+      </form>
+      {verdicts.length > 0 && <div className="verdict-history"><h3>Riwayat vonis faskes ini</h3><ul>{verdicts.map((v) => (
+        <li key={v.id}><span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
+          {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
+          <span className="verdict-date">{new Date(v.decided_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · siklus {v.period}</span>
+          {v.auditor_notes && <span className="verdict-note">{v.auditor_notes}</span>}</li>))}</ul></div>}
+    </section>
+  );
+}
+
+function LoopStatusStrip() {
+  const [status, setStatus] = useState<{ threshold: number; total: number; real_total: number; positive: number } | null>(null);
+  useEffect(() => { fetchJson<typeof status>("/api/verdicts").then(setStatus).catch(() => { }); }, []);
+  if (!status) return null;
+  const pct = Math.min(100, Math.round((status.real_total / status.threshold) * 100));
+  return <div className="loop-strip"><div className="loop-copy"><Sparkles size={16} /><span>Loop pembelajaran: <b>{status.real_total}</b> vonis nyata terkumpul dari ambang <b>{status.threshold}</b> — model RF dilatih ulang otomatis saat ambang tercapai.</span></div><div className="loop-track"><span style={{ width: `${pct}%` }} /></div></div>;
 }
 
 function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void }) {
@@ -138,6 +276,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -149,8 +288,10 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   }, [facility.kode, page]);
 
   const totalPages = Math.max(1, Math.ceil(total / CLAIMS_PAGE_SIZE));
-  const detailStats = [{ label: "Skor Gabungan", value: fmtDecimal(facility.skor_gabungan) }, { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) }, { label: "Klaim Rawat Inap", value: fmtNumber(facility.klaim_ri) }, { label: "Klaim Rawat Jalan", value: fmtNumber(facility.klaim_rj) }, { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
-  return <div id="view-detail" className="view-detail"><div className="detail-topbar"><button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button><div className="detail-title"><span className="eyebrow">FASKES TERPILIH</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2></div><RiskBadge score={facility.skor_gabungan} id="dBadge" /></div><StatBlocks id="dStats" items={detailStats} /><section className="panel evidence-panel"><div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">Menampilkan seluruh {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim faskes ini, diurutkan dari sinyal anomali terkuat.</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div><div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={11} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => <tr key={claim.claim_id}><td className="claim-id">{claim.claim_id}</td><td>{claim.setting === "inpatient" ? "Rawat Inap" : "Rawat Jalan"}</td><td>{claim.cbg ?? "—"}</td><td className="num-cell">{fmtNumber(claim.umur)}</td><td className="num-cell">{fmtNumber(claim.los)}</td><td className="num-cell">{fmtDecimal(claim.peer_median, 1)}</td><td className="num-cell bold-cell">{fmtDecimal(claim.excess, 1)}</td><td>{claim.outlier ? <span className="yes-mark">Ya</span> : "—"}</td><td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td><td className="num-cell">{fmtNumber(claim.n_dx)}</td><td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td></tr>)}</tbody></table></div><div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div><p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tabel ini dapat digunakan sebagai lampiran pemeriksaan.</p></section><AboutPanel /></div>;
+  const detailStats = [{ label: "Skor Gabungan", value: fmtDecimal(facility.skor_gabungan) },
+    { label: "Skor RF", value: facility.skor_gabungan_rf != null ? fmtDecimal(facility.skor_gabungan_rf) : "—" },
+    { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) }, { label: "Klaim Rawat Inap", value: fmtNumber(facility.klaim_ri) }, { label: "Klaim Rawat Jalan", value: fmtNumber(facility.klaim_rj) }, { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
+  return <div id="view-detail" className={`view-detail ${chatOpen ? "with-chat" : ""}`}><div className="detail-topbar"><button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button><div className="detail-title"><span className="eyebrow">FASKES TERPILIH</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2></div><RiskBadge score={facility.skor_gabungan} id="dBadge" /><button className="ghost-button chat-toggle" type="button" onClick={() => setChatOpen(!chatOpen)}><Sparkles size={16} /> Asisten AI</button></div><StatBlocks id="dStats" items={detailStats} /><LoopStatusStrip /><VerdictPanel facility={facility} /><section className="panel evidence-panel"><div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">Menampilkan seluruh {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim faskes ini, diurutkan dari sinyal anomali terkuat.</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div><div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={11} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => <tr key={claim.claim_id}><td className="claim-id">{claim.claim_id}</td><td>{claim.setting === "inpatient" ? "Rawat Inap" : "Rawat Jalan"}</td><td>{claim.cbg ?? "—"}</td><td className="num-cell">{fmtNumber(claim.umur)}</td><td className="num-cell">{fmtNumber(claim.los)}</td><td className="num-cell">{fmtDecimal(claim.peer_median, 1)}</td><td className="num-cell bold-cell">{fmtDecimal(claim.excess, 1)}</td><td>{claim.outlier ? <span className="yes-mark">Ya</span> : "—"}</td><td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td><td className="num-cell">{fmtNumber(claim.n_dx)}</td><td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td></tr>)}</tbody></table></div><div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div><p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tabel ini dapat digunakan sebagai lampiran pemeriksaan.</p></section><AboutPanel />{chatOpen && <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(false)} />}</div>;
 }
 
 function DashboardView({ onLogout }: { onLogout: () => void }) {
