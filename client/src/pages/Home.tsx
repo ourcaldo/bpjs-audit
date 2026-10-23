@@ -230,17 +230,42 @@ const FINDING_OPTIONS = [
 type Progress = { total: number; flagged: number; fraud: number; admin: number; clean: number; review: number; last_verdict: string | null; verdict_stale: boolean };
 type HistoryData = { flags: { claim_id: string; finding: string; notes: string | null; at: string }[]; verdicts: Verdict[] };
 
-function HistoryPanel({ facility, open, onClose, refreshKey }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number }) {
+function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number; progress: Progress | null; onSaved: () => void }) {
   const [data, setData] = useState<HistoryData | null>(null);
+  const [selected, setSelected] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (open) fetchJson<HistoryData>(`/api/faskes/${facility.kode}/history`).then(setData).catch(() => setData(null));
   }, [facility.kode, open, refreshKey]);
+  // ubah/isi vonis dari panel riwayat - bukan dari floating bar
+  const canChange = progress && progress.flagged > 0;
+  const stale = progress?.verdict_stale ?? false;
+  useEffect(() => { if (progress) setSelected(suggestVerdict(progress)); }, [refreshKey, open]);
+  const save = () => {
+    if (!selected) return;
+    setSaving(true);
+    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected })
+      .then(() => { setSelected(""); onSaved(); })
+      .catch(() => setSaving(false))
+      .finally(() => setSaving(false));
+  };
   return (
     <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan">
       <button className="panel-handle history-handle" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
       <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan</h4><small>{facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
+        {canChange && <div className="verdict-edit">
+          <h5>{progress?.last_verdict ? (stale ? "Flag berubah setelah vonis terakhir — perbarui vonis" : "Ubah vonis faskes") : "Tetapkan vonis faskes"}</h5>
+          <div className="verdict-edit-row">
+            <select className="verdict-edit-select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
+              <option value="">— pilih vonis —</option>
+              {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan"}</button>
+          </div>
+          {stale && <p className="verdict-edit-note">Klaim ditandai/diubah setelah vonis terakhir ({progress?.last_verdict ? VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label : "-"}).</p>}
+        </div>}
         <h5>Klaim ditandai ({data.flags.length})</h5>
         {data.flags.length === 0 && <p className="history-empty">Belum ada klaim yang ditandai.</p>}
         <ul className="history-list">{data.flags.map((f) => <li key={f.claim_id}>
@@ -283,7 +308,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   // bar muncul hanya saat: ada flag DAN belum ada vonis untuk flag-flag itu.
   // Vonis tersimpan + tidak ada flag baru = bar tidak muncul lagi, sampai
   // auditor mengubah flag (verdict_stale dari API: flag > vonis terakhir).
-  const show = progress.flagged > 0 && (!progress.last_verdict || progress.verdict_stale);
+  const show = progress.flagged > 0 && !progress.last_verdict;
   const coverage = progress.total ? progress.flagged / progress.total : 0;
   const lowCoverage = coverage < 0.9;
   useEffect(() => { setSelected(suggestion); }, [suggestion]);
@@ -414,7 +439,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
     <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} />
-    <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} />
+    <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />
   </div>;
 }
 

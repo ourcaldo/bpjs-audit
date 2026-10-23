@@ -251,6 +251,14 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .f-clean { background: var(--risk-low-bg); color: var(--risk-low-text); }
 .f-needs_review { background: #e4e9f4; color: #3a4a6b; }
 .history-panel .verdict-tag { font-size: 11px; }
+.verdict-edit { padding: 12px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 8px; background: rgba(255, 255, 255, .06); margin-bottom: 16px; }
+.verdict-edit h5 { margin-top: 0 !important; }
+.verdict-edit-row { display: flex; gap: 8px; }
+.verdict-edit-select { flex: 1; border: 1px solid rgba(255, 255, 255, .3); background: #0f1c38; color: #e7ecf7; border-radius: 6px; padding: 9px 10px; font: 600 13px 'Barlow', sans-serif; cursor: pointer; }
+.verdict-edit-select option { background: #0f1c38; }
+.verdict-edit .primary-button { min-height: 40px; padding: 8px 14px; font-size: 13px; background: #fff; color: #16264a; }
+.verdict-edit .primary-button:hover { background: #dde5f5; }
+.verdict-edit-note { margin: 8px 0 0; font-size: 12px; color: #f0c26e; }
 
 /* ---- Check progress + flag cell + verdict bar ---- */
 .check-progress { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 14px 18px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 6px; }
