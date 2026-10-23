@@ -242,8 +242,8 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .history-body h5:first-child { margin-top: 0; }
 .history-table-wrap { max-height: 300px; overflow-y: auto; border: 1px solid var(--c-border); border-radius: 8px; }
 .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.history-table th { position: sticky; top: 0; background: var(--c-primary-soft); color: var(--c-primary-dark); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; }
-.history-table td { padding: 8px 10px; border-top: 1px solid var(--c-border); vertical-align: top; }
+.history-table th { position: sticky; top: 0; background: var(--c-primary-soft); color: var(--c-primary-dark); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; white-space: nowrap; }
+.history-table td { padding: 8px 10px; border-top: 1px solid var(--c-border); vertical-align: top; text-align: left; }
 .history-by { color: var(--c-text-2); font-size: 12px; white-space: nowrap; }
 .history-empty { font-size: 13px; color: var(--c-text-2); }
 .history-ref { font-weight: 600; color: var(--c-primary-dark); }
