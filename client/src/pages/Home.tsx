@@ -227,7 +227,9 @@ const FINDING_OPTIONS = [
 ];
 
 type Progress = { total: number; flagged: number; fraud: number; admin: number; clean: number; review: number; last_verdict: string | null; verdict_stale: boolean };
-type HistoryData = { flags: { claim_id: string; finding: string; notes: string | null; at: string }[]; verdicts: Verdict[] };
+type HistoryData = { flags: { claim_id: string; finding: string; notes: string | null; audited_by: string | null; at: string }[]; verdicts: (Verdict & { audited_by: string | null })[] };
+const AUDITOR_NAME = "A. Prasetyo";
+const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number; progress: Progress | null; onSaved: () => void }) {
   const [data, setData] = useState<HistoryData | null>(null);
@@ -243,7 +245,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }
   const save = () => {
     if (!selected) return;
     setSaving(true);
-    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected })
+    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected, audited_by: AUDITOR_NAME })
       .then(() => { setSelected(""); onSaved(); })
       .catch(() => setSaving(false))
       .finally(() => setSaving(false));
@@ -252,36 +254,43 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }
     <>
     <button className="panel-handle history-handle edge-tab" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
     <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan">
-      <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan</h4><small>{facility.kode}</small></div>
+      <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan Faskes</h4><small>{facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
         {canChange && <div className="verdict-edit">
-          <h5>{progress?.last_verdict ? (stale ? "Flag berubah setelah vonis terakhir — perbarui vonis" : "Ubah vonis faskes") : "Tetapkan vonis faskes"}</h5>
+          <h5>{progress?.last_verdict ? (stale ? "Perubahan klaim setelah keputusan terakhir — perbarui status faskes" : "Ubah Status Faskes") : "Tetapkan Status Faskes"}</h5>
           <div className="verdict-edit-row">
-            <select className="verdict-edit-select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
-              <option value="">— pilih vonis —</option>
+            <select className="verdict-edit-select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih status faskes">
+              <option value="">— pilih status —</option>
               {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan"}</button>
           </div>
-          {stale && <p className="verdict-edit-note">Klaim ditandai/diubah setelah vonis terakhir ({progress?.last_verdict ? VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label : "-"}).</p>}
+          {stale && <p className="verdict-edit-note">Klaim ditandai/diubah setelah status terakhir ({progress?.last_verdict ? VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label : "-"}).</p>}
         </div>}
-        <h5>Klaim ditandai ({data.flags.length})</h5>
-        {data.flags.length === 0 && <p className="history-empty">Belum ada klaim yang ditandai.</p>}
-        <ul className="history-list">{data.flags.map((f) => <li key={f.claim_id}>
-          <span className={`finding-tag f-${f.finding}`}>{FINDING_OPTIONS.find((o) => o.value === f.finding)?.label ?? f.finding}</span>
-          <span className="history-ref">{f.claim_id}</span>
-          <span className="history-date">{new Date(f.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
-          {f.notes && <span className="history-note">{f.notes}</span>}
-        </li>)}</ul>
-        <h5>Vonis faskes ({data.verdicts.length})</h5>
-        {data.verdicts.length === 0 && <p className="history-empty">Belum ada vonis faskes.</p>}
-        <ul className="history-list">{data.verdicts.map((v) => <li key={v.id}>
-          <span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
-            {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
-          <span className="history-date">{new Date(v.decided_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · siklus {v.period}</span>
-          {v.auditor_notes && <span className="history-note">{v.auditor_notes}</span>}
-        </li>)}</ul>
+        <h5>Riwayat Perubahan Klaim ({data.flags.length})</h5>
+        {data.flags.length === 0 ? <p className="history-empty">Belum ada klaim yang ditandai.</p> : (
+        <div className="history-table-wrap"><table className="history-table">
+          <thead><tr><th>Klaim</th><th>Hasil</th><th>Oleh</th><th>Waktu</th></tr></thead>
+          <tbody>{data.flags.map((f) => <tr key={f.claim_id}>
+            <td className="history-ref">{f.claim_id}</td>
+            <td><span className={`finding-tag f-${f.finding}`}>{FINDING_OPTIONS.find((o) => o.value === f.finding)?.label ?? f.finding}</span></td>
+            <td className="history-by">{f.audited_by ?? "—"}</td>
+            <td className="history-date">{fmtDateTime(f.at)}</td>
+          </tr>)}</tbody>
+        </table></div>)}
+        <h5>Riwayat Perubahan Faskes ({data.verdicts.length})</h5>
+        {data.verdicts.length === 0 ? <p className="history-empty">Belum ada status faskes yang dicatat.</p> : (
+        <div className="history-table-wrap"><table className="history-table">
+          <thead><tr><th>Status</th><th>Oleh</th><th>Waktu</th></tr></thead>
+          <tbody>{data.verdicts.map((v) => <tr key={v.id}>
+            <td><span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
+              {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
+              {v.auditor_notes && <span className="history-note">{v.auditor_notes}</span>}</td>
+            <td className="history-by">{v.audited_by ?? "—"}</td>
+            <td className="history-date">{fmtDateTime(v.decided_at)}</td>
+          </tr>)}</tbody>
+        </table></div>)}
       </div> : <div className="history-body"><p className="history-empty">Memuat riwayat…</p></div>)}
     </aside>
     </>
@@ -318,9 +327,9 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
     if (!selected) return;
     setSaving(true);
     postJson<Verdict>("/api/verdicts", {
-      kode: facility.kode, verdict: selected,
+      kode: facility.kode, verdict: selected, audited_by: AUDITOR_NAME,
       auditor_notes: lowCoverage
-        ? `Vonis berdasarkan sampel: ${progress.flagged} dari ${progress.total} klaim diperiksa.`
+        ? `Status berdasarkan sampel: ${progress.flagged} dari ${progress.total} klaim diperiksa.`
         : null,
     })
       .then(() => onSaved())
@@ -377,7 +386,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
 
   const flagClaim = (claimId: string, finding: string) => {
     setFlagBusy(claimId);
-    postJson<{ claim_id: string; finding: string }>(`/api/claims/${claimId}/flag`, { provider: facility.kode, finding })
+    postJson<{ claim_id: string; finding: string }>(`/api/claims/${claimId}/flag`, { provider: facility.kode, finding, audited_by: AUDITOR_NAME })
       .then(() => { setFlags((f) => ({ ...f, [claimId]: finding })); setRefreshKey((k) => k + 1); })
       .catch(() => { })
       .finally(() => setFlagBusy(null));

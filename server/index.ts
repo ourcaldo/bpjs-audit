@@ -159,13 +159,15 @@ async function startServer() {
     if (typeof finding !== "string" || !CLAIM_FINDINGS.includes(finding as never))
       return res.status(422).json({ detail: `finding harus salah satu: ${CLAIM_FINDINGS.join(", ")}` });
     const notes = typeof b.notes === "string" ? b.notes : null;
+    const by = typeof b.audited_by === "string" && b.audited_by ? b.audited_by : null;
     const { rows } = await pool.query(`
-      INSERT INTO claim_flag (claim_id, provider, finding, notes)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO claim_flag (claim_id, provider, finding, notes, audited_by)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (claim_id) DO UPDATE
-        SET finding = EXCLUDED.finding, notes = EXCLUDED.notes, flagged_at = now()
-      RETURNING claim_id, provider, finding, notes, flagged_at`,
-      [req.params.id, b.provider ?? null, finding, notes]);
+        SET finding = EXCLUDED.finding, notes = EXCLUDED.notes,
+            audited_by = EXCLUDED.audited_by, flagged_at = now()
+      RETURNING claim_id, provider, finding, notes, audited_by, flagged_at`,
+      [req.params.id, b.provider ?? null, finding, notes, by]);
     res.status(201).json(rows[0]);
   }));
 
@@ -205,11 +207,11 @@ async function startServer() {
   // riwayat lengkap satu faskes: flag klaim + vonis, urut waktu (panel riwayat)
   app.get("/api/faskes/:kode/history", ah(async (req, res) => {
     const flags = await pool.query(`
-      SELECT claim_id, finding, notes, flagged_at AS at
+      SELECT claim_id, finding, notes, audited_by, flagged_at AS at
       FROM claim_flag WHERE provider = $1
       ORDER BY flagged_at DESC LIMIT 100`, [req.params.kode]);
     const verdicts = await pool.query(`
-      SELECT verdict, auditor_notes, period, decided_at AS at
+      SELECT verdict, auditor_notes, audited_by, period, decided_at AS at
       FROM audit_outcome WHERE provider = $1
       ORDER BY decided_at DESC LIMIT 50`, [req.params.kode]);
     res.json({ flags: flags.rows, verdicts: verdicts.rows });
@@ -274,10 +276,11 @@ async function startServer() {
       "SELECT claim_id FROM claim_flag WHERE provider = $1", [kode]);
     const ev: string[] = fl.rows.map((r: { claim_id: string }) => r.claim_id);
     const { rows } = await pool.query(`
-      INSERT INTO audit_outcome (provider, period, verdict, evidence_ref, auditor_notes, sample_kind)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO audit_outcome (provider, period, verdict, evidence_ref, auditor_notes, sample_kind, audited_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id, provider AS kode, period, verdict, auditor_notes, sample_kind, decided_at`,
-      [kode, b.period ?? String(new Date().toISOString().slice(0, 7)), verdict, ev, notes, sample_kind]);
+      [kode, b.period ?? String(new Date().toISOString().slice(0, 7)), verdict, ev, notes, sample_kind,
+       typeof b.audited_by === "string" ? b.audited_by : null]);
     res.status(201).json(rows[0]);
   }));
 
