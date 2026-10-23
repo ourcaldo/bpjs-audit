@@ -201,12 +201,16 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 
 /* ---- Chat panel (right panel, struktur siap Track B) ---- */
 .chat-toggle { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
-.panel-handle { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 78px; border: 0; border-radius: 8px 0 0 8px; cursor: pointer; display: grid; place-items: center; font-size: 18px; color: var(--c-text-inv); box-shadow: -4px 0 12px rgba(0, 0, 0, .15); }
+.panel-handle { position: absolute; transform: translateY(-50%); width: 34px; height: 78px; border: 0; border-radius: 8px 0 0 8px; cursor: pointer; display: grid; place-items: center; font-size: 18px; color: var(--c-text-inv); box-shadow: -4px 0 12px rgba(0, 0, 0, .15); }
+.edge-tab { position: fixed; right: 0; z-index: 45; }
 .chat-panel, .history-panel { position: fixed; top: 0; right: 0; z-index: 40; width: 400px; max-width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: var(--c-surface); border-left: 1px solid var(--c-border); box-shadow: -8px 0 24px rgba(20, 40, 80, .1); transition: transform .35s cubic-bezier(.4, 0, .2, 1); }
 .chat-panel { transform: translateX(100%); }
 .chat-panel.chat-open { transform: translateX(0); }
 .panel-handle { left: -34px; }
-.chat-handle { background: var(--c-primary); }
+/* konsep pembatas buku: dua tab vertikal di tepi kanan layar.
+   chat di atas, history di bawahnya - keduanya SELALU terlihat dan
+   nempel di tepi layar, bukan ikut mundur bersama panelnya */
+.chat-handle { top: 30%; background: var(--c-primary); }
 .chat-handle:hover { background: var(--c-primary-dark); }
 .chat-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; background: var(--c-primary); color: var(--c-text-inv); min-height: 76px; }
 .chat-bot-mark { width: 40px; height: 40px; border-radius: 10px; background: var(--c-surface); color: var(--c-primary); display: grid; place-items: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
@@ -229,9 +233,11 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .chat-send:hover { background: var(--c-primary-dark); }
 
 /* ---- History panel (aksen beda: navy tua) ---- */
-.history-panel { transform: translateX(calc(100% + 434px)); background: #16264a; color: #e7ecf7; border-left: 0; }
-.history-panel.panel-open { transform: translateX(0); }
-.history-handle { background: #16264a; }
+/* konsep pembatas buku: tab history SELALU terlihat di tepi kanan (fixed),
+   tidak ikut mundur bersama panel. Panelnya sendiri slide dari kanan. */
+.history-panel { transform: translateX(100%); background: #16264a; color: #e7ecf7; border-left: 0; visibility: hidden; }
+.history-panel.panel-open { transform: translateX(0); visibility: visible; }
+.history-handle { top: 44%; background: #16264a; }
 .history-handle:hover { background: #0f1c38; }
 .history-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; background: #0f1c38; color: #e7ecf7; min-height: 76px; }
 .history-head h4 { font-size: 16px; font-weight: 600; }

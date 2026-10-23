@@ -190,7 +190,6 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
   };
   return (
     <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Asisten AI">
-      <button className="panel-handle chat-handle" type="button" aria-label={open ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={onClose}>{open ? "›" : "‹"}</button>
       <div className="chat-head">
         <div className="chat-bot-mark">AI</div>
         <div><h4>Asisten Audit</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
@@ -250,8 +249,9 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }
       .finally(() => setSaving(false));
   };
   return (
+    <>
+    <button className="panel-handle history-handle edge-tab" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
     <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan">
-      <button className="panel-handle history-handle" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
       <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan</h4><small>{facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
@@ -284,6 +284,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }
         </li>)}</ul>
       </div> : <div className="history-body"><p className="history-empty">Memuat riwayat…</p></div>)}
     </aside>
+    </>
   );
 }
 
@@ -438,6 +439,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
     </section>
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
+    <button className="panel-handle chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>
     <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} />
     <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />
   </div>;
