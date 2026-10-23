@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Eye,
   FileText,
+  History,
   KeyRound,
   LockKeyhole,
   Search,
@@ -173,7 +174,7 @@ function AboutPanel() {
   </ol><div className="about-divider" /><p className="about-footer">Sistem Audit Intelligence merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
 }
 
-// ---- Panel chat asisten (right panel) ----
+// ---- Panel chat asisten (right panel, selalu render + handle geser) ----
 // Struktur siap untuk Track B: chat grounding pada konteks faskes terpilih.
 // Saat ini respons contoh; nanti dihubungkan ke API AI (coding review assist).
 function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolean; onClose: () => void }) {
@@ -189,26 +190,29 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
   };
   return (
     <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Asisten AI">
+      <button className="panel-handle chat-handle" type="button" aria-label={open ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={onClose}>{open ? "›" : "‹"}</button>
       <div className="chat-head">
         <div className="chat-bot-mark">AI</div>
         <div><h4>Asisten Audit</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
-        <button className="chat-close" type="button" aria-label="Tutup asisten" onClick={onClose}><X size={18} /></button>
+        {open && <button className="chat-close" type="button" aria-label="Tutup asisten" onClick={onClose}><X size={18} /></button>}
       </div>
-      <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
-      <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
-        ? <div className="chat-m chat-m-ai" key={i}><span className="chat-name">Asisten Audit</span>{m.text}</div>
-        : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}</div>
-      <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} onClick={() => send(c)}>{c}</button>)}</div>
-      <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
-        <textarea rows={1} placeholder="Tanya tentang klaim ini…" value={input} onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} />
-        <button className="chat-send" type="submit" aria-label="Kirim"><Send size={16} /></button>
-      </form>
+      {open && <>
+        <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
+        <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
+          ? <div className="chat-m chat-m-ai" key={i}><span className="chat-name">Asisten Audit</span>{m.text}</div>
+          : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}</div>
+        <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} onClick={() => send(c)}>{c}</button>)}</div>
+        <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
+          <textarea rows={1} placeholder="Tanya tentang klaim ini…" value={input} onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} />
+          <button className="chat-send" type="submit" aria-label="Kirim"><Send size={16} /></button>
+        </form>
+      </>}
     </aside>
   );
 }
 
-// ---- Panel vonis auditor (Track A feedback loop) ----
+// ---- Panel riwayat pemeriksaan (right panel kedua, aksen beda) ----
 const VERDICT_OPTIONS = [
   { value: "confirmed", label: "Konfirmasi fraud" },
   { value: "partially", label: "Sebagian terkonfirmasi" },
@@ -216,60 +220,89 @@ const VERDICT_OPTIONS = [
   { value: "administrative", label: "Masalah administratif" },
   { value: "needs_followup", label: "Perlu tindak lanjut" },
 ];
+const FINDING_OPTIONS = [
+  { value: "fraud", label: "Fraud" },
+  { value: "administrative", label: "Salah administrasi" },
+  { value: "clean", label: "Bersih" },
+  { value: "needs_review", label: "Perlu ditinjau" },
+];
 
-function VerdictPanel({ facility, onSaved }: { facility: Faskes; onSaved?: () => void }) {
-  const [verdicts, setVerdicts] = useState<Verdict[]>([]);
-  const [selected, setSelected] = useState("");
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState("");
+type Progress = { total: number; flagged: number; fraud: number; admin: number; clean: number; review: number; last_verdict: string | null };
+type HistoryData = { flags: { claim_id: string; finding: string; notes: string | null; at: string }[]; verdicts: Verdict[] };
 
-  const load = () => fetchJson<{ items: Verdict[] }>(`/api/verdicts/${facility.kode}`)
-    .then((r) => setVerdicts(r.items)).catch(() => setVerdicts([]));
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [facility.kode]);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-    setSaving(true); setFeedback("");
-    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected, auditor_notes: notes || null })
-      .then(() => {
-        setSelected(""); setNotes("");
-        setFeedback("Vonis tersimpan — menjadi data latih model berikutnya.");
-        load(); onSaved?.();
-      })
-      .catch(() => setFeedback("Gagal menyimpan vonis."))
-      .finally(() => setSaving(false));
-  };
-
+function HistoryPanel({ facility, open, onClose, refreshKey }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number }) {
+  const [data, setData] = useState<HistoryData | null>(null);
+  useEffect(() => {
+    if (open) fetchJson<HistoryData>(`/api/faskes/${facility.kode}/history`).then(setData).catch(() => setData(null));
+  }, [facility.kode, open, refreshKey]);
   return (
-    <section className="panel verdict-panel">
-      <div className="panel-heading"><div><h2>Vonis Auditor</h2><p>Hasil pemeriksaan dicatat apa adanya dan menjadi data latih skor RF. Ambang retrain model: 100 vonis nyata.</p></div><ClipboardCheck size={18} /></div>
-      <form className="verdict-form" onSubmit={submit}>
-        <div className="verdict-options">{VERDICT_OPTIONS.map((v) => (
-          <label className={`verdict-opt ${selected === v.value ? "opt-active" : ""}`} key={v.value}>
-            <input type="radio" name="verdict" value={v.value} checked={selected === v.value} onChange={() => setSelected(v.value)} />
-            {v.label}
-          </label>))}</div>
-        <textarea rows={2} placeholder="Catatan auditor (opsional) — dasar pemeriksaan, klaim yang ditelusuri…" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        <button className="primary-button" type="submit" disabled={!selected || saving}>{saving ? "Menyimpan…" : "Catat vonis"}</button>
-        {feedback && <span className="verdict-feedback">{feedback}</span>}
-      </form>
-      {verdicts.length > 0 && <div className="verdict-history"><h3>Riwayat vonis faskes ini</h3><ul>{verdicts.map((v) => (
-        <li key={v.id}><span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
-          {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
-          <span className="verdict-date">{new Date(v.decided_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · siklus {v.period}</span>
-          {v.auditor_notes && <span className="verdict-note">{v.auditor_notes}</span>}</li>))}</ul></div>}
-    </section>
+    <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan">
+      <button className="panel-handle history-handle" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
+      <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan</h4><small>{facility.kode}</small></div>
+        {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
+      {open && (data ? <div className="history-body">
+        <h5>Klaim ditandai ({data.flags.length})</h5>
+        {data.flags.length === 0 && <p className="history-empty">Belum ada klaim yang ditandai.</p>}
+        <ul className="history-list">{data.flags.map((f) => <li key={f.claim_id}>
+          <span className={`finding-tag f-${f.finding}`}>{FINDING_OPTIONS.find((o) => o.value === f.finding)?.label ?? f.finding}</span>
+          <span className="history-ref">{f.claim_id}</span>
+          <span className="history-date">{new Date(f.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+          {f.notes && <span className="history-note">{f.notes}</span>}
+        </li>)}</ul>
+        <h5>Vonis faskes ({data.verdicts.length})</h5>
+        {data.verdicts.length === 0 && <p className="history-empty">Belum ada vonis faskes.</p>}
+        <ul className="history-list">{data.verdicts.map((v) => <li key={v.id}>
+          <span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
+            {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
+          <span className="history-date">{new Date(v.decided_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · siklus {v.period}</span>
+          {v.auditor_notes && <span className="history-note">{v.auditor_notes}</span>}
+        </li>)}</ul>
+      </div> : <div className="history-body"><p className="history-empty">Memuat riwayat…</p></div>)}
+    </aside>
   );
 }
 
-function LoopStatusStrip() {
-  const [status, setStatus] = useState<{ threshold: number; total: number; real_total: number; positive: number } | null>(null);
-  useEffect(() => { fetchJson<typeof status>("/api/verdicts").then(setStatus).catch(() => { }); }, []);
-  if (!status) return null;
-  const pct = Math.min(100, Math.round((status.real_total / status.threshold) * 100));
-  return <div className="loop-strip"><div className="loop-copy"><Sparkles size={16} /><span>Loop pembelajaran: <b>{status.real_total}</b> vonis nyata terkumpul dari ambang <b>{status.threshold}</b> — model RF dilatih ulang otomatis saat ambang tercapai.</span></div><div className="loop-track"><span style={{ width: `${pct}%` }} /></div></div>;
+// ---- Floating verdict bar (muncul saat semua klaim selesai diperiksa) ----
+function suggestVerdict(p: Progress): string {
+  if (p.flagged === 0 || p.total === 0) return "";
+  const checked = p.fraud + p.admin + p.clean + p.review;
+  if (checked === 0) return "";
+  if (p.fraud === checked) return "confirmed";
+  if (p.review > 0 && p.fraud + p.admin === 0) return "needs_followup";
+  if (p.fraud > 0) return "partially";
+  if (p.admin > 0 && p.clean + p.review === 0) return "administrative";
+  if (p.clean === checked) return "clean";
+  return "needs_followup";
+}
+
+function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progress: Progress; onSaved: () => void }) {
+  const [selected, setSelected] = useState("");
+  const [dismissed, setDismissed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const suggestion = suggestVerdict(progress);
+  const allChecked = progress.flagged > 0 && progress.flagged >= progress.total;
+  const show = allChecked && !dismissed;
+  useEffect(() => { setSelected(suggestion); }, [suggestion]);
+  if (!show) return null;
+  const save = () => {
+    if (!selected) return;
+    setSaving(true);
+    postJson<Verdict>("/api/verdicts", { kode: facility.kode, verdict: selected })
+      .then(() => { setDismissed(true); onSaved(); })
+      .catch(() => setSaving(false))
+      .finally(() => setSaving(false));
+  };
+  return (
+    <div className="verdict-bar" role="dialog" aria-label="Usulan vonis faskes">
+      <span className="vb-icon"><ClipboardCheck size={18} /></span>
+      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini — ubah kapan saja, atau konfirmasi sekarang.</p>
+      <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
+        {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan vonis"}</button>
+      <button className="vb-dismiss" type="button" aria-label="Tunda" onClick={() => setDismissed(true)}>Nanti saja</button>
+    </div>
+  );
 }
 
 function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void }) {
@@ -277,7 +310,18 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [histOpen, setHistOpen] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [flags, setFlags] = useState<Record<string, string>>({});
+  const [flagBusy, setFlagBusy] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const loadProgress = () =>
+    fetchJson<Progress>(`/api/faskes/${facility.kode}/progress`)
+      .then(setProgress).catch(() => setProgress(null));
+  useEffect(() => { loadProgress(); setFlags({}); /* eslint-disable-next-line */ }, [facility.kode]);
+  useEffect(() => { if (refreshKey) loadProgress(); /* eslint-disable-next-line */ }, [refreshKey]);
 
   useEffect(() => {
     setLoading(true);
@@ -288,11 +332,73 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
       .finally(() => setLoading(false));
   }, [facility.kode, page]);
 
+  const flagClaim = (claimId: string, finding: string) => {
+    setFlagBusy(claimId);
+    postJson<{ claim_id: string; finding: string }>(`/api/claims/${claimId}/flag`, { provider: facility.kode, finding })
+      .then(() => { setFlags((f) => ({ ...f, [claimId]: finding })); setRefreshKey((k) => k + 1); })
+      .catch(() => { })
+      .finally(() => setFlagBusy(null));
+  };
+  const unflagClaim = (claimId: string) => {
+    setFlagBusy(claimId);
+    fetch(`${API}/api/claims/${claimId}/flag`, { method: "DELETE" })
+      .then(() => { setFlags((f) => { const n = { ...f }; delete n[claimId]; return n; }); setRefreshKey((k) => k + 1); })
+      .catch(() => { })
+      .finally(() => setFlagBusy(null));
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / CLAIMS_PAGE_SIZE));
   const detailStats = [{ label: "Skor Gabungan", value: fmtDecimal(facility.skor_gabungan) },
     { label: "Skor RF", value: facility.skor_gabungan_rf != null ? fmtDecimal(facility.skor_gabungan_rf) : "—" },
-    { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) }, { label: "Klaim Rawat Inap", value: fmtNumber(facility.klaim_ri) }, { label: "Klaim Rawat Jalan", value: fmtNumber(facility.klaim_rj) }, { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
-  return <div id="view-detail" className={`view-detail ${chatOpen ? "with-chat" : ""}`}><div className="detail-topbar"><button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button><div className="detail-title"><span className="eyebrow">FASKES TERPILIH</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2></div><RiskBadge score={facility.skor_gabungan} id="dBadge" /><button className="ghost-button chat-toggle" type="button" onClick={() => setChatOpen(!chatOpen)}><Sparkles size={16} /> Asisten AI</button></div><StatBlocks id="dStats" items={detailStats} /><LoopStatusStrip /><VerdictPanel facility={facility} /><section className="panel evidence-panel"><div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">Menampilkan seluruh {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim faskes ini, diurutkan dari sinyal anomali terkuat.</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div><div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={11} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => <tr key={claim.claim_id}><td className="claim-id">{claim.claim_id}</td><td>{claim.setting === "inpatient" ? "Rawat Inap" : "Rawat Jalan"}</td><td>{claim.cbg ?? "—"}</td><td className="num-cell">{fmtNumber(claim.umur)}</td><td className="num-cell">{fmtNumber(claim.los)}</td><td className="num-cell">{fmtDecimal(claim.peer_median, 1)}</td><td className="num-cell bold-cell">{fmtDecimal(claim.excess, 1)}</td><td>{claim.outlier ? <span className="yes-mark">Ya</span> : "—"}</td><td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td><td className="num-cell">{fmtNumber(claim.n_dx)}</td><td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td></tr>)}</tbody></table></div><div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div><p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tabel ini dapat digunakan sebagai lampiran pemeriksaan.</p></section><AboutPanel />{chatOpen && <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(false)} />}</div>;
+    { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) },
+    { label: "Klaim Diperiksa", value: progress ? `${fmtNumber(progress.flagged)} / ${fmtNumber(progress.total)}` : "…" },
+    { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
+  const progressPct = progress && progress.total ? Math.min(100, Math.round((progress.flagged / progress.total) * 100)) : 0;
+  return <div id="view-detail" className="view-detail">
+    <div className="detail-topbar">
+      <button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
+      <div className="detail-title"><span className="eyebrow">FASKES TERPILIH</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2></div>
+      <RiskBadge score={facility.skor_gabungan} id="dBadge" />
+    </div>
+    <StatBlocks id="dStats" items={detailStats} />
+    <div className="check-progress">
+      <div className="check-progress-copy"><ClipboardCheck size={16} /><span>Pemeriksaan: <b>{progress ? fmtNumber(progress.flagged) : "…"}</b> dari <b>{progress ? fmtNumber(progress.total) : "…"}</b> klaim sudah ditandai</span>
+        {progress && progress.last_verdict && <span className="last-verdict-chip">vonis terakhir: {VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label ?? progress.last_verdict}</span>}
+      </div>
+      <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
+    </div>
+    <section className="panel evidence-panel">
+      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis.</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
+      <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
+        const flagged = flags[claim.claim_id];
+        return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>
+          <td className="claim-id">{claim.claim_id}</td>
+          <td>{claim.setting === "inpatient" ? "Rawat Inap" : "Rawat Jalan"}</td>
+          <td>{claim.cbg ?? "—"}</td>
+          <td className="num-cell">{fmtNumber(claim.umur)}</td>
+          <td className="num-cell">{fmtNumber(claim.los)}</td>
+          <td className="num-cell">{fmtDecimal(claim.peer_median, 1)}</td>
+          <td className="num-cell bold-cell">{fmtDecimal(claim.excess, 1)}</td>
+          <td>{claim.outlier ? <span className="yes-mark">Ya</span> : "—"}</td>
+          <td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td>
+          <td className="num-cell">{fmtNumber(claim.n_dx)}</td>
+          <td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td>
+          <td className="flag-cell">
+            <select className="flag-select" value={flagged ?? ""} disabled={flagBusy === claim.claim_id}
+              onChange={(e) => { const v = e.target.value; if (v) flagClaim(claim.claim_id, v); else if (flagged) unflagClaim(claim.claim_id); }}>
+              <option value="">— belum —</option>
+              {FINDING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </td>
+        </tr>; })}</tbody></table></div>
+      <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
+      <p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan vonis faskes.</p>
+    </section>
+    <AboutPanel />
+    {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
+    <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} />
+    <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} />
+  </div>;
 }
 
 function DashboardView({ onLogout }: { onLogout: () => void }) {

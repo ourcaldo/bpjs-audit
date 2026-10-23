@@ -150,6 +150,65 @@ async function startServer() {
 
   // ---- Track A: vonis auditor (feedback loop) ----
   const VERDICTS = ["confirmed", "partially", "clean", "administrative", "needs_followup"] as const;
+  const CLAIM_FINDINGS = ["fraud", "administrative", "clean", "needs_review"] as const;
+
+  // flag satu klaim (ritme harian auditor; jadi fitur RF flag_rate + bahan Track B)
+  app.post("/api/claims/:id/flag", ah(async (req, res) => {
+    const b = req.body ?? {};
+    const finding = b.finding;
+    if (typeof finding !== "string" || !CLAIM_FINDINGS.includes(finding as never))
+      return res.status(422).json({ detail: `finding harus salah satu: ${CLAIM_FINDINGS.join(", ")}` });
+    const notes = typeof b.notes === "string" ? b.notes : null;
+    const { rows } = await pool.query(`
+      INSERT INTO claim_flag (claim_id, provider, finding, notes)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (claim_id) DO UPDATE
+        SET finding = EXCLUDED.finding, notes = EXCLUDED.notes, flagged_at = now()
+      RETURNING claim_id, provider, finding, notes, flagged_at`,
+      [req.params.id, b.provider ?? null, finding, notes]);
+    res.status(201).json(rows[0]);
+  }));
+
+  app.delete("/api/claims/:id/flag", ah(async (req, res) => {
+    await pool.query("DELETE FROM claim_flag WHERE claim_id = $1", [req.params.id]);
+    res.status(204).end();
+  }));
+
+  // status pemeriksaan faskes: berapa klaim sudah diflag vs total
+  app.get("/api/faskes/:kode/progress", ah(async (req, res) => {
+    const kode = req.params.kode;
+    const t = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM claim_evidence WHERE provider = $1", [kode]);
+    const f = await pool.query(`
+      SELECT COUNT(*)::int AS n,
+             COUNT(*) FILTER (WHERE finding = 'fraud')::int AS fraud,
+             COUNT(*) FILTER (WHERE finding = 'administrative')::int AS admin,
+             COUNT(*) FILTER (WHERE finding = 'clean')::int AS clean,
+             COUNT(*) FILTER (WHERE finding = 'needs_review')::int AS review
+      FROM claim_flag WHERE provider = $1`, [kode]);
+    const v = await pool.query(`
+      SELECT verdict FROM audit_outcome WHERE provider = $1
+      ORDER BY decided_at DESC LIMIT 1`, [kode]);
+    res.json({
+      total: t.rows[0].n, flagged: f.rows[0].n,
+      fraud: f.rows[0].fraud, admin: f.rows[0].admin,
+      clean: f.rows[0].clean, review: f.rows[0].review,
+      last_verdict: v.rows[0]?.verdict ?? null,
+    });
+  }));
+
+  // riwayat lengkap satu faskes: flag klaim + vonis, urut waktu (panel riwayat)
+  app.get("/api/faskes/:kode/history", ah(async (req, res) => {
+    const flags = await pool.query(`
+      SELECT claim_id, finding, notes, flagged_at AS at
+      FROM claim_flag WHERE provider = $1
+      ORDER BY flagged_at DESC LIMIT 100`, [req.params.kode]);
+    const verdicts = await pool.query(`
+      SELECT verdict, auditor_notes, period, decided_at AS at
+      FROM audit_outcome WHERE provider = $1
+      ORDER BY decided_at DESC LIMIT 50`, [req.params.kode]);
+    res.json({ flags: flags.rows, verdicts: verdicts.rows });
+  }));
 
   // riwayat vonis satu faskes
   app.get("/api/verdicts/:kode", ah(async (req, res) => {
@@ -205,11 +264,15 @@ async function startServer() {
     const sample_kind = b.sample_kind === "random" ? "random" : "priority";
     const ex = await pool.query("SELECT 1 FROM faskes_scores WHERE provider = $1", [kode]);
     if (!ex.rowCount) return res.status(404).json({ detail: "faskes tidak ditemukan" });
+    // evidence_ref otomatis dari flag klaim faskes ini
+    const fl = await pool.query(
+      "SELECT claim_id FROM claim_flag WHERE provider = $1", [kode]);
+    const ev: string[] = fl.rows.map((r: { claim_id: string }) => r.claim_id);
     const { rows } = await pool.query(`
-      INSERT INTO audit_outcome (provider, period, verdict, auditor_notes, sample_kind)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO audit_outcome (provider, period, verdict, evidence_ref, auditor_notes, sample_kind)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, provider AS kode, period, verdict, auditor_notes, sample_kind, decided_at`,
-      [kode, b.period ?? String(new Date().toISOString().slice(0, 7)), verdict, notes, sample_kind]);
+      [kode, b.period ?? String(new Date().toISOString().slice(0, 7)), verdict, ev, notes, sample_kind]);
     res.status(201).json(rows[0]);
   }));
 
