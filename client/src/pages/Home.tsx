@@ -12,6 +12,7 @@ import {
   Search,
   Send,
   ShieldCheck,
+  Shuffle,
   SlidersHorizontal,
   Sparkles,
   UserRound,
@@ -318,13 +319,22 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
     { label: "Total klaim (RI + RJ)", value: stats ? fmtNumber(stats.klaim_ri + stats.klaim_rj) : "…" },
     { label: "Total estimasi kerugian (LOS)", value: stats ? fmtRupiah(stats.rugi) : "…" }];
   const openDetail = (kode: string) => { setDetailCode(kode); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const [randomOpen, setRandomOpen] = useState(false);
+  const [randomList, setRandomList] = useState<Faskes[]>([]);
+  const [randomLoading, setRandomLoading] = useState(false);
+  const drawRandom = () => {
+    setRandomLoading(true);
+    fetchJson<{ items: Faskes[] }>("/api/sample?n=20").then((r) => setRandomList(r.items))
+      .catch(() => setRandomList([])).finally(() => setRandomLoading(false));
+    setRandomOpen(true);
+  };
   const showMain = () => { setDetailCode(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const goPage = (nextPage: number) => setPage(Math.max(1, Math.min(Math.ceil(filteredList.length / PAGE_SIZE) || 1, nextPage)));
   const setThresholdAndReset = (value: number) => { setThreshold(value); setPage(1); };
   const setQueryAndReset = (value: string) => { setQuery(value); setPage(1); };
   const setOnlyEvAndReset = (value: boolean) => { setOnlyEv(value); setPage(1); };
   if (facility) return <><Header onLogout={onLogout} /><main className="app-main"><DetailView facility={facility} onBack={showMain} /></main></>;
-  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div>{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
+  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="intro-actions"><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div></div>{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas — vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
 }
 
 export default function Home() {

@@ -160,6 +160,28 @@ async function startServer() {
     res.json({ items: rows });
   }));
 
+  // sampel kontrol acak: N faskes dari populasi penuh, belum divonis siklus ini.
+  // Dasar kebijakan anti-selection-bias Track A: auditor memeriksa sampel acak
+  // sama seriusnya dengan daftar prioritas -> model beli contoh jujur dari
+  // faskes yang bersih, bukan hanya dari pilihan sistem sendiri.
+  app.get("/api/sample", ah(async (req, res) => {
+    const n = Math.min(50, Math.max(1, parseInt(String(req.query.n), 10) || 20));
+    const { rows } = await pool.query(`
+      SELECT s.provider AS kode, s.peringkat::int AS peringkat,
+             s.skor_gabungan::float8, s.skor_gabungan_rf::float8,
+             s.skor_los::float8, s.skor_upcoding::float8,
+             s.ip_n_claims::int AS klaim_ri, s.op_n_claims::int AS klaim_rj,
+             s.excess_cost_sum::float8 AS estimasi_rugi
+      FROM faskes_scores s
+      WHERE NOT EXISTS (
+        SELECT 1 FROM audit_outcome a
+        WHERE a.provider = s.provider
+          AND a.period = to_char(now(), 'YYYY-MM')
+          AND (a.auditor_notes IS NULL OR a.auditor_notes NOT LIKE '%seed demo%'))
+      ORDER BY random() LIMIT $1`, [n]);
+    res.json({ items: rows });
+  }));
+
   // status loop pembelajaran: jumlah vonis nyata vs ambang retrain
   app.get("/api/verdicts", ah(async (_req, res) => {
     const { rows } = await pool.query(`

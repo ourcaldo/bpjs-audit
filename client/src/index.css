@@ -159,6 +159,15 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .yes-mark { color: var(--risk-high-text); font-weight: 700; }
 .evidence-footnote { margin: 0 20px 20px; padding-top: 16px; }
 
+/* ---- Random control sample panel (Track A anti-selection-bias) ---- */
+.intro-actions { display: flex; align-items: center; gap: 16px; }
+.sample-button { display: inline-flex; align-items: center; gap: 8px; }
+.random-panel { margin-bottom: 22px; }
+.random-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 0 20px 20px; }
+.random-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; cursor: pointer; text-align: left; transition: border-color 150ms, background 150ms; }
+.random-card:hover { border-color: var(--c-primary); background: var(--c-primary-soft); }
+.random-rank { font-size: 12px; color: var(--c-text-2); }
+
 /* ---- Loop status strip (Track A) ---- */
 .loop-strip { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 14px 18px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 6px; }
 .loop-copy { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--c-text-2); }
