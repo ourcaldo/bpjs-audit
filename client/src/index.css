@@ -206,8 +206,8 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .edge-tab { position: fixed; right: 0; width: 34px; height: 78px; border: 0; border-radius: 8px 0 0 8px; cursor: pointer; display: grid; place-items: center; font-size: 18px; color: var(--c-text-inv); box-shadow: -4px 0 12px rgba(0, 0, 0, .2); z-index: 45; }
 .chat-handle { top: 30%; background: var(--c-primary); }
 .chat-handle:hover { background: var(--c-primary-dark); }
-.history-handle { top: 44%; background: #16264a; }
-.history-handle:hover { background: #0f1c38; }
+.history-handle { top: 44%; background: #c8102e; }
+.history-handle:hover { background: #a50d26; }
 .chat-panel, .history-panel { position: fixed; top: 0; right: 0; z-index: 40; width: 400px; max-width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: var(--c-surface); border-left: 1px solid var(--c-border); box-shadow: -8px 0 24px rgba(20, 40, 80, .1); transition: transform .35s cubic-bezier(.4, 0, .2, 1); }
 .chat-panel { transform: translateX(100%); }
 .chat-panel.chat-open { transform: translateX(0); }
@@ -231,35 +231,35 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .chat-send { width: 44px; height: 44px; border: 0; border-radius: 10px; background: var(--c-primary); color: var(--c-text-inv); cursor: pointer; display: grid; place-items: center; }
 .chat-send:hover { background: var(--c-primary-dark); }
 
-/* ---- History panel (aksen beda: navy tua) ---- */
-.history-panel { transform: translateX(100%); background: #16264a; color: #e7ecf7; border-left: 0; visibility: hidden; }
-.history-panel.panel-open { transform: translateX(0); visibility: visible; }
-.history-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; background: #0f1c38; color: #e7ecf7; min-height: 76px; }
+/* ---- History panel (putih seperti chat panel, teks navy) ---- */
+.history-panel { transform: translateX(100%); background: var(--c-surface); color: var(--c-text); border-left: 1px solid var(--c-border); transition: transform .35s cubic-bezier(.4, 0, .2, 1); z-index: 41; }
+.history-panel.panel-open { transform: translateX(0); }
+.history-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; background: var(--c-primary); color: var(--c-text-inv); min-height: 76px; }
 .history-head h4 { font-size: 16px; font-weight: 600; }
 .history-head svg { flex-shrink: 0; }
 .history-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
-.history-body h5 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9db1d6; margin: 12px 0 8px; }
+.history-body h5 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--c-primary); margin: 12px 0 8px; }
 .history-body h5:first-child { margin-top: 0; }
 .history-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .history-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
-.history-empty { font-size: 13px; color: #9db1d6; }
-.history-ref { font-weight: 600; color: #e7ecf7; }
-.history-date { color: #9db1d6; font-size: 12px; }
-.history-note { flex-basis: 100%; color: #b6c4de; font-size: 12px; font-style: italic; }
+.history-empty { font-size: 13px; color: var(--c-text-2); }
+.history-ref { font-weight: 600; color: var(--c-primary-dark); }
+.history-date { color: var(--c-text-2); font-size: 12px; }
+.history-note { flex-basis: 100%; color: var(--c-text-2); font-size: 12px; font-style: italic; }
 .finding-tag { padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
 .f-fraud { background: var(--risk-high-bg); color: var(--risk-high-text); }
 .f-administrative { background: var(--risk-medium-bg); color: var(--risk-medium-text); }
 .f-clean { background: var(--risk-low-bg); color: var(--risk-low-text); }
 .f-needs_review { background: #e4e9f4; color: #3a4a6b; }
 .history-panel .verdict-tag { font-size: 11px; }
-.verdict-edit { padding: 12px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 8px; background: rgba(255, 255, 255, .06); margin-bottom: 16px; }
+.verdict-edit { padding: 12px; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-primary-soft); margin-bottom: 16px; }
 .verdict-edit h5 { margin-top: 0 !important; }
 .verdict-edit-row { display: flex; gap: 8px; }
-.verdict-edit-select { flex: 1; border: 1px solid rgba(255, 255, 255, .3); background: #0f1c38; color: #e7ecf7; border-radius: 6px; padding: 9px 10px; font: 600 13px 'Barlow', sans-serif; cursor: pointer; }
-.verdict-edit-select option { background: #0f1c38; }
-.verdict-edit .primary-button { min-height: 40px; padding: 8px 14px; font-size: 13px; background: #fff; color: #16264a; }
+.verdict-edit-select { flex: 1; border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); border-radius: 6px; padding: 9px 10px; font: 600 13px 'Barlow', sans-serif; cursor: pointer; }
+.verdict-edit-select option { background: var(--c-surface); }
+.verdict-edit .primary-button { min-height: 40px; padding: 8px 14px; font-size: 13px; }
 .verdict-edit .primary-button:hover { background: #dde5f5; }
-.verdict-edit-note { margin: 8px 0 0; font-size: 12px; color: #f0c26e; }
+.verdict-edit-note { margin: 8px 0 0; font-size: 12px; color: var(--risk-medium-text); }
 
 /* ---- Check progress + flag cell + verdict bar ---- */
 .check-progress { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 14px 18px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 6px; }
