@@ -247,6 +247,22 @@ async function startServer() {
       // sinyal upcoding
       const admit_dx = typeof b.admit_dx === "string" && b.admit_dx ? b.admit_dx : null;
       const dx_change = admit_dx && !dx.includes(admit_dx) ? 1 : 0;
+      // proc band: none/operatif/intervensi (ICD-9-CM: tanpa proc / < 8700 /
+      // 8700-9999) — cegah campuran operasi/intervensi vs konsultasi dalam
+      // satu peer group (temuan data riil BPJS 2025). Tidak ada kolom
+      // proc_band di DB; dihitung dari proc1-6 di SQL.
+      const PROC_BAND_EXPR = `CASE WHEN regexp_replace(
+          COALESCE(proc1,proc2,proc3,proc4,proc5,proc6), '\\D.*', '') !~ '^[0-9]+$'
+        THEN 'none'
+        WHEN regexp_replace(COALESCE(proc1,proc2,proc3,proc4,proc5,proc6),
+          '\\D.*', '')::int < 8700
+        THEN 'operatif' ELSE 'intervensi' END`;
+      const req_proc = Array.isArray(b.proc) ? b.proc.filter(Boolean) : [];
+      const proc_band = req_proc.length === 0 ? "none"
+        : req_proc.some((p: string) => {
+            const m = /^\s*(\d+)/.exec(p);
+            return m && Number(m[1]) < 8700;
+          }) ? "operatif" : "intervensi";
       const peer_key = admit_dx || dx[0] || null;
       let amt_ratio: number | null = null;
       let peer_level: string | null = null;
@@ -254,12 +270,13 @@ async function startServer() {
         let r2 = await client.query(`
           SELECT COUNT(*)::int AS n,
                  percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS med
-          FROM klaim_rawat_inap WHERE COALESCE(admit_dx, dx1) = $1`, [peer_key]);
+          FROM klaim_rawat_inap WHERE COALESCE(admit_dx, dx1) = $1
+            AND ${PROC_BAND_EXPR} = $2`, [peer_key, proc_band]);
         if (!(r2.rows[0].n >= 10 && r2.rows[0].med)) {
           r2 = await client.query(`
             SELECT COUNT(*)::int AS n,
                    percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS med
-            FROM klaim_rawat_inap`);
+            FROM klaim_rawat_inap WHERE ${PROC_BAND_EXPR} = $1`, [proc_band]);
         }
         peer_level = r2.rows[0].n >= 10 ? "dx" : "setting_global";
         if (r2.rows[0].med) amt_ratio = amount / r2.rows[0].med;
@@ -271,15 +288,18 @@ async function startServer() {
       const bene_id = (typeof b.bene_id === "string" && b.bene_id) ||
         `PESDEMO${String(los).padStart(2, "0")}${String(umur).padStart(3, "0")}`;
       const dx10 = Array.from({ length: 10 }, (_, i) => dx[i] ?? null);
+      const proc6 = Array.from({ length: 6 }, (_, i) => req_proc[i] ?? null);
 
       await client.query(`
         INSERT INTO klaim_rawat_inap
           (claim_id, bene_id, provider, claim_start, claim_end,
            admission_dt, discharge_dt, amount, admit_dx, cbg,
-           dx1, dx2, dx3, dx4, dx5, dx6, dx7, dx8, dx9, dx10)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+           dx1, dx2, dx3, dx4, dx5, dx6, dx7, dx8, dx9, dx10,
+           proc1, proc2, proc3, proc4, proc5, proc6)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+                $21,$22,$23,$24,$25,$26)`,
         [claim_id, bene_id, provider, admission_dt, discharge_dt,
-         admission_dt, discharge_dt, amount, admit_dx, cbg, ...dx10]);
+         admission_dt, discharge_dt, amount, admit_dx, cbg, ...dx10, ...proc6]);
       await client.query(`
         INSERT INTO claim_evidence
           (claim_id, provider, cbg, umur, los, peer_median, peer_p90,
