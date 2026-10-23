@@ -227,7 +227,7 @@ const FINDING_OPTIONS = [
   { value: "needs_review", label: "Perlu ditinjau" },
 ];
 
-type Progress = { total: number; flagged: number; fraud: number; admin: number; clean: number; review: number; last_verdict: string | null };
+type Progress = { total: number; flagged: number; fraud: number; admin: number; clean: number; review: number; last_verdict: string | null; verdict_stale: boolean };
 type HistoryData = { flags: { claim_id: string; finding: string; notes: string | null; at: string }[]; verdicts: Verdict[] };
 
 function HistoryPanel({ facility, open, onClose, refreshKey }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number }) {
@@ -278,12 +278,12 @@ function suggestVerdict(p: Progress): string {
 
 function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progress: Progress; onSaved: () => void }) {
   const [selected, setSelected] = useState("");
-  const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
   const suggestion = suggestVerdict(progress);
-  // bar muncul setelah klaim PERTAMA ditandai - sistem tidak pernah menahan
-  // keputusan, hanya selalu menyatakan cakupan dasarnya
-  const show = progress.flagged > 0 && !dismissed;
+  // bar muncul hanya saat: ada flag DAN belum ada vonis untuk flag-flag itu.
+  // Vonis tersimpan + tidak ada flag baru = bar tidak muncul lagi, sampai
+  // auditor mengubah flag (verdict_stale dari API: flag > vonis terakhir).
+  const show = progress.flagged > 0 && (!progress.last_verdict || progress.verdict_stale);
   const coverage = progress.total ? progress.flagged / progress.total : 0;
   const lowCoverage = coverage < 0.9;
   useEffect(() => { setSelected(suggestion); }, [suggestion]);
@@ -297,7 +297,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
         ? `Vonis berdasarkan sampel: ${progress.flagged} dari ${progress.total} klaim diperiksa.`
         : null,
     })
-      .then(() => { setDismissed(true); onSaved(); })
+      .then(() => onSaved())
       .catch(() => setSaving(false))
       .finally(() => setSaving(false));
   };
@@ -309,7 +309,6 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
         {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan vonis"}</button>
-      <button className="vb-dismiss" type="button" aria-label="Tunda" onClick={() => setDismissed(true)}>Nanti saja</button>
     </div>
   );
 }
@@ -319,7 +318,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [flags, setFlags] = useState<Record<string, string>>({});
@@ -329,7 +328,16 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   const loadProgress = () =>
     fetchJson<Progress>(`/api/faskes/${facility.kode}/progress`)
       .then(setProgress).catch(() => setProgress(null));
-  useEffect(() => { loadProgress(); setFlags({}); /* eslint-disable-next-line */ }, [facility.kode]);
+  // flags tersimpan di DB - muat ulang saat buka faskes supaya tabel
+  // menampilkan tanda yang sudah ada, bukan "belum" lagi
+  const loadFlags = () =>
+    fetchJson<HistoryData>(`/api/faskes/${facility.kode}/history`)
+      .then((h) => {
+        const map: Record<string, string> = {};
+        for (const f of h.flags) map[f.claim_id] = f.finding;
+        setFlags(map);
+      }).catch(() => { });
+  useEffect(() => { loadProgress(); loadFlags(); /* eslint-disable-next-line */ }, [facility.kode]);
   useEffect(() => { if (refreshKey) loadProgress(); /* eslint-disable-next-line */ }, [refreshKey]);
 
   useEffect(() => {

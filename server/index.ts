@@ -184,16 +184,21 @@ async function startServer() {
              COUNT(*) FILTER (WHERE finding = 'fraud')::int AS fraud,
              COUNT(*) FILTER (WHERE finding = 'administrative')::int AS admin,
              COUNT(*) FILTER (WHERE finding = 'clean')::int AS clean,
-             COUNT(*) FILTER (WHERE finding = 'needs_review')::int AS review
+             COUNT(*) FILTER (WHERE finding = 'needs_review')::int AS review,
+             MAX(flagged_at) AS last_flag_at
       FROM claim_flag WHERE provider = $1`, [kode]);
     const v = await pool.query(`
-      SELECT verdict FROM audit_outcome WHERE provider = $1
+      SELECT verdict, decided_at FROM audit_outcome WHERE provider = $1
       ORDER BY decided_at DESC LIMIT 1`, [kode]);
+    // bar vonis perlu muncul lagi hanya bila ada flag LEBIH BARU dari vonis terakhir
+    const lastFlag = f.rows[0].last_flag_at ? new Date(f.rows[0].last_flag_at) : null;
+    const lastVerdictAt = v.rows[0]?.decided_at ? new Date(v.rows[0].decided_at) : null;
     res.json({
       total: t.rows[0].n, flagged: f.rows[0].n,
       fraud: f.rows[0].fraud, admin: f.rows[0].admin,
       clean: f.rows[0].clean, review: f.rows[0].review,
       last_verdict: v.rows[0]?.verdict ?? null,
+      verdict_stale: Boolean(lastFlag && lastVerdictAt && lastFlag > lastVerdictAt),
     });
   }));
 
