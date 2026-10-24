@@ -653,7 +653,7 @@ async function startServer() {
     // (kalimat pendek ala auditor seperti "skor RS1792 berapa" wajar di sini)
     const g = await cfRun("@cf/cloudflare/clef-flash", {
       model: "clef-flash",
-      state: `Konteks: chat di dalam dashboard Audit Intelligence BPJS Kesehatan. Auditor sedang memeriksa faskes ${kode}. Input dari auditor: "${message}"`,
+      state: `Konteks: chat di dalam dashboard Klarity BPJS Kesehatan. Auditor sedang memeriksa faskes ${kode}. Input dari auditor: "${message}"`,
       questions: {
         relevant: {
           type: "noul",
@@ -670,7 +670,7 @@ async function startServer() {
       });
 
     // 2. agent deepseek + tools
-    const SYSTEM = `Anda adalah asisten auditor BPJS Kesehatan di dashboard Audit Intelligence.
+    const SYSTEM = `Anda adalah asisten auditor BPJS Kesehatan di dashboard Klarity.
 Konteks: auditor sedang memeriksa faskes ${kode}.
 ATURAN:
 - Semua angka WAJIB berasal dari hasil tool call - jangan pernah mengarang angka.

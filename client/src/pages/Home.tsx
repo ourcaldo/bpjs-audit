@@ -109,7 +109,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
           <div className="login-meta"><ShieldCheck size={18} strokeWidth={1.7} /><span>Lingkungan internal BPJS Kesehatan</span></div>
           <div className="login-meta"><LockKeyhole size={18} strokeWidth={1.7} /><span>Akses terbatas untuk auditor terotorisasi</span></div>
         </div>
-        <div className="login-footer">© 2026 BPJS Kesehatan · Sistem Audit Intelligence</div>
+        <div className="login-footer">© 2026 BPJS Kesehatan · Klarity</div>
       </section>
       <section className="login-panel">
         <div className="login-panel-inner">
@@ -136,7 +136,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
 }
 
 function Header({ onLogout }: { onLogout: () => void }) {
-  return <header className="app-header"><div className="header-brand"><LogoMark /><div><h1>Audit Intelligence <span>— Peringkat Risiko Faskes</span></h1><p>Prototipe mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor merupakan prioritas audit, bukan vonis fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo</span><ChevronRight size={15} /></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></header>;
+  return <header className="app-header"><div className="header-brand"><LogoMark /><div><h1>Klarity <span>— Peringkat Risiko Faskes</span></h1><p>Prototipe mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor merupakan prioritas audit, bukan vonis fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo</span><ChevronRight size={15} /></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></header>;
 }
 
 function StatBlocks({ items, id }: { items: { label: string; value: string; accent?: boolean }[]; id?: string }) {
@@ -171,12 +171,44 @@ function AboutPanel() {
     <li>Skor merupakan alat memprioritaskan audit — bukan vonis. Penetapan status fraud tetap melalui pemeriksaan oleh auditor, dan vonis itulah yang mengajari sistem.</li>
     <li>Ambang skor disesuaikan dengan kapasitas audit: ambang lebih rendah menangkap lebih banyak kasus (recall naik), ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik).</li>
     <li>Data yang ditampilkan merupakan data sintetis untuk keperluan prototipe, mengikuti struktur kode INA-CBG sesuai Permenkes Nomor 26 Tahun 2021. Metodologi telah diuji pada data sampel publikasi resmi BPJS (Data Sampel Reguler Edisi 2025).</li>
-  </ol><div className="about-divider" /><p className="about-footer">Sistem Audit Intelligence merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
+  </ol><div className="about-divider" /><p className="about-footer">Klarity merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
 }
 
 // ---- Panel chat asisten (right panel, selalu render + handle geser) ----
 // Struktur siap untuk Track B: chat grounding pada konteks faskes terpilih.
-// Saat ini respons contoh; nanti dihubungkan ke API AI (coding review assist).
+// Renderer markdown mini untuk jawaban agent (bold, list, heading, tabel) -
+// tanpa dependency, cukup untuk format jawaban Klarity Agent.
+function renderMarkdown(text: string) {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const bold = (s: string) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let inList = false, inTable = false;
+  const endList = () => { if (inList) { out.push("</ul>"); inList = false; } };
+  const endTable = () => { if (inTable) { out.push("</tbody></table>"); inTable = false; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^\|.*\|$/.test(line)) {
+      const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+      if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue; // separator row
+      if (!inTable) { endList(); out.push("<table class=\"md-table\"><tbody>"); inTable = true; }
+      out.push(`<tr>${cells.map((c) => `<td>${bold(c)}</td>`).join("")}</tr>`);
+      continue;
+    }
+    endTable();
+    if (/^#{1,3}\s/.test(line)) { endList(); out.push(`<h6 class="md-h">${bold(line.replace(/^#+\s/, ""))}</h6>`); continue; }
+    if (/^[-*]\s/.test(line) || /^\d+\.\s/.test(line)) {
+      if (!inList) { out.push("<ul class=\"md-list\">"); inList = true; }
+      out.push(`<li>${bold(line.replace(/^([-*]|\d+\.)\s/, ""))}</li>`); continue;
+    }
+    endList();
+    if (!line) { out.push("<div class=\"md-gap\"></div>"); continue; }
+    out.push(`<p class="md-p">${bold(line)}</p>`);
+  }
+  endList(); endTable();
+  return out.join("");
+}
+
 function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolean; onClose: () => void }) {
   const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string; tools?: { name: string }[] }[]>([
     { role: "ai", text: `Halo! Saya bisa membantu membaca bukti audit ${facility.kode}: menjelaskan skor, merangkum pola anomali, atau menilai konsistensi koding klaim. Saya mengambil data langsung dari database.` },
@@ -202,21 +234,22 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
       .finally(() => setBusy(false));
   };
   return (
-    <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Asisten AI">
+    <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Klarity Agent">
       <div className="chat-head">
-        <div className="chat-bot-mark">AI</div>
-        <div><h4>Asisten Audit</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
+        <div className="chat-bot-mark">K</div>
+        <div><h4>Klarity Agent</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup asisten" onClick={onClose}><X size={18} /></button>}
       </div>
       {open && <>
         <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
         <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
           ? <div className="chat-m chat-m-ai" key={i}>
-              <span className="chat-name">Asisten Audit</span>{m.text}
+              <span className="chat-name">Klarity Agent</span>
+              <div className="chat-bubble-ai" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text) }} />
               {m.tools && m.tools.length > 0 && <span className="chat-tools">⌘ {m.tools.map((t) => t.name).join(", ")}</span>}
             </div>
           : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}
-          {busy && <div className="chat-m chat-m-ai"><span className="chat-name">Asisten Audit</span><span className="typing-dots"><span /><span /><span /></span></div>}
+          {busy && <div className="chat-m chat-m-ai"><span className="chat-name">Klarity Agent</span><div className="chat-bubble-ai"><span className="typing-dots"><span /><span /><span /></span></div></div>}
         </div>
         <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} disabled={busy} onClick={() => send(c)}>{c}</button>)}</div>
         <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
