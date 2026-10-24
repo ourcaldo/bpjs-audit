@@ -178,15 +178,28 @@ function AboutPanel() {
 // Struktur siap untuk Track B: chat grounding pada konteks faskes terpilih.
 // Saat ini respons contoh; nanti dihubungkan ke API AI (coding review assist).
 function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolean; onClose: () => void }) {
-  const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string }[]>([
-    { role: "ai", text: `Halo! Saya bisa membantu membaca bukti audit ${facility.kode}: menjelaskan skor, merangkum pola anomali, atau menyiapkan draf catatan pemeriksaan.` },
+  const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string; tools?: { name: string }[] }[]>([
+    { role: "ai", text: `Halo! Saya bisa membantu membaca bukti audit ${facility.kode}: menjelaskan skor, merangkum pola anomali, atau menilai konsistensi koding klaim. Saya mengambil data langsung dari database.` },
   ]);
   const [input, setInput] = useState("");
-  const chips = ["Kenapa risikonya tinggi?", "Ringkas outlier LOS", "Buat draf catatan audit"];
+  const [busy, setBusy] = useState(false);
+  const chips = ["Kenapa risikonya tinggi?", "Ringkas outlier LOS", "Ada klaim dengan koding mencurigakan?"];
   const send = (text: string) => {
-    if (!text.trim()) return;
-    setMessages((m) => [...m, { role: "user", text }, { role: "ai", text: "Respons contoh. Panel ini akan dihubungkan ke API asisten AI (Track B) untuk analisis klaim berbasis konteks faskes ini." }]);
+    if (!text.trim() || busy) return;
+    const history = messages.slice(-6).map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }));
+    setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
+    setBusy(true);
+    postJson<{ reply?: string; tool_calls?: { name: string }[]; detail?: string }>("/api/agent/chat", {
+      text, kode: facility.kode, history,
+    })
+      .then((r) => setMessages((m) => [...m, {
+        role: "ai",
+        text: r.reply ?? r.detail ?? "Terjadi kesalahan.",
+        tools: r.tool_calls,
+      }]))
+      .catch(() => setMessages((m) => [...m, { role: "ai", text: "Gagal menghubungi asisten. Coba lagi." }]))
+      .finally(() => setBusy(false));
   };
   return (
     <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Asisten AI">
@@ -198,13 +211,18 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
       {open && <>
         <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
         <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
-          ? <div className="chat-m chat-m-ai" key={i}><span className="chat-name">Asisten Audit</span>{m.text}</div>
-          : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}</div>
-        <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} onClick={() => send(c)}>{c}</button>)}</div>
+          ? <div className="chat-m chat-m-ai" key={i}>
+              <span className="chat-name">Asisten Audit</span>{m.text}
+              {m.tools && m.tools.length > 0 && <span className="chat-tools">⌘ {m.tools.map((t) => t.name).join(", ")}</span>}
+            </div>
+          : <div className="chat-m chat-m-user" key={i}>{m.text}</div>)}
+          {busy && <div className="chat-m chat-m-ai"><span className="chat-name">Asisten Audit</span><span className="typing-dots"><span /><span /><span /></span></div>}
+        </div>
+        <div className="chat-chips">{chips.map((c) => <button className="chat-chip" type="button" key={c} disabled={busy} onClick={() => send(c)}>{c}</button>)}</div>
         <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
           <textarea rows={1} placeholder="Tanya tentang klaim ini…" value={input} onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} />
-          <button className="chat-send" type="submit" aria-label="Kirim"><Send size={16} /></button>
+          <button className="chat-send" type="submit" aria-label="Kirim" disabled={busy}><Send size={16} /></button>
         </form>
       </>}
     </aside>

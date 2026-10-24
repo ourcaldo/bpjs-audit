@@ -511,6 +511,203 @@ async function startServer() {
     res.json({ answer: j.result?.answers?.relevant });
   }));
 
+  // ---- Agent tools: SQL read-only ke Neon. Model menarik data sendiri. ----
+  const AGENT_TOOLS = [
+    {
+      type: "function" as const,
+      function: {
+        name: "get_faskes_scores",
+        description: "Ambil skor risiko dan fitur agregat satu faskes (composite, RF, LOS, upcoding). Wajib untuk menjawab pertanyaan tentang skor/peringkat.",
+        parameters: { type: "object", properties: { kode: { type: "string", description: "Kode faskes, mis. RS1792" } }, required: ["kode"] },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_claim_evidence",
+        description: "Ambil bukti per klaim faskes, terurut dari sinyal anomali terkuat. Filter opsional: setting (rawat inap/jalan).",
+        parameters: {
+          type: "object",
+          properties: {
+            kode: { type: "string" },
+            limit: { type: "integer", description: "Jumlah klaim (default 10, max 50)" },
+            setting: { type: "string", enum: ["inpatient", "outpatient"], description: "Opsional: filter layanan" },
+          },
+          required: ["kode"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_icd10_info",
+        description: "Deskripsi resmi kode diagnosis ICD-10 dari referensi BPJS 2024. Gunakan sebelum menilai konsistensi koding.",
+        parameters: { type: "object", properties: { code: { type: "string", description: "Kode 3 digit, mis. A09" } }, required: ["code"] },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_cbg_info",
+        description: "Info kelompok CBG (huruf pertama kode CBG, mis. J dari J-4-20-III): label kelompok diagnosis + tarif dasar + pool dx.",
+        parameters: { type: "object", properties: { cmg: { type: "string", description: "Satu huruf CMG" } }, required: ["cmg"] },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_audit_history",
+        description: "Riwayat pemeriksaan faskes: klaim yang ditandai auditor (flag) + status faskes yang pernah dicatat.",
+        parameters: { type: "object", properties: { kode: { type: "string" } }, required: ["kode"] },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_claim_detail",
+        description: "Detail SATU klaim: semua diagnosis (masuk, primer, sekunder) + prosedur + tanggal. Untuk review konsistensi koding.",
+        parameters: { type: "object", properties: { claim_id: { type: "string" } }, required: ["claim_id"] },
+      },
+    },
+  ];
+
+  const runTool = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+    switch (name) {
+      case "get_faskes_scores": {
+        const { rows } = await pool.query(`
+          SELECT provider AS kode, peringkat::int, skor_gabungan::float8, skor_gabungan_rf::float8,
+                 skor_los::float8, skor_upcoding::float8, ip_n_claims::int, op_n_claims::int,
+                 los_outlier_rate::float8, los_excess_mean::float8, excess_cost_sum::float8,
+                 ip_dx_changed_rate::float8, ip_n_dx_mean::float8, ip_amt_ratio_mean::float8
+          FROM faskes_scores WHERE provider = $1`, [args.kode]);
+        return rows[0] ?? { detail: "faskes tidak ditemukan" };
+      }
+      case "get_claim_evidence": {
+        const limit = Math.min(50, Math.max(1, Number(args.limit) || 10));
+        const setting = args.setting === "inpatient" || args.setting === "outpatient" ? args.setting : null;
+        const { rows } = await pool.query(`
+          SELECT claim_id, setting, cbg, umur::int AS umur, los::int AS los,
+                 peer_median::float8, excess::int AS excess, outlier::int AS outlier,
+                 dx_change::int AS dx_change, n_dx::int AS n_dx, amt_ratio::float8
+          FROM claim_evidence WHERE provider = $1 ${setting ? "AND setting = $2" : ""}
+          ORDER BY (COALESCE(excess,0)/10.0 + COALESCE(outlier,0)*0.4
+                    + GREATEST(COALESCE(amt_ratio,1) - 1, 0)/4.0) DESC NULLS LAST, claim_id
+          LIMIT ${setting ? "$3" : "$2"}`,
+          setting ? [args.kode, setting, limit] : [args.kode, limit]);
+        return rows;
+      }
+      case "get_icd10_info": {
+        const { rows } = await pool.query(
+          "SELECT code, text, chapter FROM ref_icd10 WHERE UPPER(code) = UPPER($1)", [args.code]);
+        return rows[0] ?? { detail: "kode ICD-10 tidak ada di referensi BPJS 2024" };
+      }
+      case "get_cbg_info": {
+        const { rows } = await pool.query(
+          "SELECT cmg, label, tarif_base, dx_pool FROM ref_cmg WHERE UPPER(cmg) = UPPER($1)", [args.cmg]);
+        return rows[0] ?? { detail: "CMG tidak dikenal" };
+      }
+      case "get_audit_history": {
+        const flags = await pool.query(`
+          SELECT claim_id, finding, audited_by, flagged_at
+          FROM claim_flag WHERE provider = $1 ORDER BY flagged_at DESC LIMIT 50`, [args.kode]);
+        const verdicts = await pool.query(`
+          SELECT verdict, audited_by, decided_at FROM audit_outcome
+          WHERE provider = $1 ORDER BY decided_at DESC LIMIT 20`, [args.kode]);
+        return { flags: flags.rows, verdicts: verdicts.rows };
+      }
+      case "get_claim_detail": {
+        const { rows } = await pool.query(`
+          SELECT k.claim_id, k.provider, k.admit_dx, k.cbg,
+                 k.dx1, k.dx2, k.dx3, k.dx4, k.dx5, k.dx6, k.dx7, k.dx8, k.dx9, k.dx10,
+                 k.proc1, k.proc2, k.proc3, k.proc4, k.proc5, k.proc6,
+                 k.admission_dt, k.discharge_dt, k.amount
+          FROM klaim_rawat_inap k WHERE k.claim_id = $1`, [args.claim_id]);
+        return rows[0] ?? { detail: "klaim rawat inap tidak ditemukan" };
+      }
+      default:
+        return { detail: "tool tidak dikenal" };
+    }
+  };
+
+  const cfRun = async (model: string, body: Record<string, unknown>) => {
+    const r = await fetch(CF_BASE(model), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${CF_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json() as Record<string, unknown>;
+    return j;
+  };
+
+  // POST /api/agent/chat - guardrail -> agent loop (max 8 tool rounds)
+  app.post("/api/agent/chat", ah(async (req, res) => {
+    if (!CF_ACCOUNT || !CF_TOKEN) return res.status(503).json({ detail: "Cloudflare env belum diset" });
+    const b = req.body ?? {};
+    const message = typeof b.text === "string" ? b.text.trim() : "";
+    const kode = typeof b.kode === "string" ? b.kode : "";
+    const history = Array.isArray(b.history) ? b.history.slice(-6) : [];
+    if (!message) return res.status(422).json({ detail: "text wajib" });
+    if (!kode) return res.status(422).json({ detail: "kode faskes wajib (konteks)" });
+
+    // 1. guardrail clef-flash
+    const g = await cfRun("@cf/cloudflare/clef-flash", {
+      model: "clef-flash",
+      state: message,
+      questions: {
+        relevant: {
+          type: "noul",
+          instructions: "Is this input relevant to BPJS JKN claim auditing (fraud risk scoring, claim evidence, INA-CBG codes, ICD-10 diagnosis, length of stay, upcoding, faskes audit priority)?",
+        },
+      },
+    }) as { success?: boolean; result?: { answers?: { relevant?: { noul?: number } } }; errors?: unknown };
+    if (!g.success) return res.status(502).json({ detail: "guardrail error", errors: g.errors });
+    const relevance = g.result?.answers?.relevant?.noul ?? 0;
+    if (relevance < 0.5)
+      return res.status(200).json({
+        reply: "Maaf, saya hanya bisa membantu hal yang berkaitan dengan audit klaim JKN: skor risiko faskes, bukti per klaim, kode ICD-10/INA-CBG, riwayat pemeriksaan, dan status faskes.",
+        relevance, tool_calls: [],
+      });
+
+    // 2. agent deepseek + tools
+    const SYSTEM = `Anda adalah asisten auditor BPJS Kesehatan di dashboard Audit Intelligence.
+Konteks: auditor sedang memeriksa faskes ${kode}.
+ATURAN:
+- Semua angka WAJIB berasal dari hasil tool call - jangan pernah mengarang angka.
+- Skor adalah prioritas audit, BUKAN vonis fraud. Jangan menuduh - sampaikan bukti.
+- Anda menilai konsistensi KODING (ICD-10/INA-CBG), bukan mendiagnosis pasien.
+- Jawab ringkas, dalam Bahasa Indonesia, sebut klaim ID sebagai bukti.`;
+    type Msg = { role: string; content: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[]; tool_call_id?: string; name?: string };
+    const messages: Msg[] = [{ role: "system", content: SYSTEM },
+      ...history.map((h: { role: string; content: string }) => ({ role: h.role, content: h.content })),
+      { role: "user", content: message }];
+    const toolCallsLog: { name: string; args: unknown }[] = [];
+    for (let round = 0; round < 8; round++) {
+      const j = await cfRun("@cf/deepseek-ai/deepseek-v4.1-flash-1017", {
+        messages,
+        tools: AGENT_TOOLS,
+        reasoning_effort: "low",
+      }) as { success?: boolean; result?: { message?: Msg & { tool_calls?: { id: string; function: { name: string; arguments: string } }[] }, response?: string }, errors?: unknown };
+      if (!j.success) return res.status(502).json({ detail: "deepseek error", errors: j.errors });
+      const msg = j.result?.message;
+      if (!msg) return res.status(502).json({ detail: "deepseek tanpa pesan" });
+      const calls = msg.tool_calls ?? [];
+      if (!calls.length) {
+        const reply = typeof msg.content === "string" ? msg.content : (j.result?.response ?? "");
+        return res.json({ reply, relevance, tool_calls: toolCallsLog });
+      }
+      messages.push(msg);
+      for (const c of calls) {
+        let args: Record<string, unknown> = {};
+        try { args = JSON.parse(c.function.arguments || "{}"); } catch { args = {}; }
+        const result = await runTool(c.function.name, args);
+        toolCallsLog.push({ name: c.function.name, args });
+        messages.push({ role: "tool", tool_call_id: c.id, name: c.function.name,
+          content: JSON.stringify(result).slice(0, 12000) });
+      }
+    }
+    return res.status(504).json({ detail: "agent kehabisan ronde tool" });
+  }));
+
   app.use(express.static(staticPath));
 
   // Handle client-side routing - serve index.html for all routes

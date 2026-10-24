@@ -230,6 +230,13 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .chat-composer textarea:focus { border-color: var(--c-primary); }
 .chat-send { width: 44px; height: 44px; border: 0; border-radius: 10px; background: var(--c-primary); color: var(--c-text-inv); cursor: pointer; display: grid; place-items: center; }
 .chat-send:hover { background: var(--c-primary-dark); }
+.chat-send:disabled { opacity: .5; cursor: default; }
+.chat-tools { display: block; margin-top: 6px; font-size: 11px; color: var(--c-text-2); font-style: italic; }
+.typing-dots { display: inline-flex; gap: 4px; align-items: center; }
+.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--c-text-2); animation: tdots 1s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .15s; }
+.typing-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes tdots { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
 
 /* ---- History panel (putih seperti chat panel, teks navy) ---- */
 .history-panel { transform: translateX(100%); background: var(--c-surface); color: var(--c-text); border-left: 1px solid var(--c-border); transition: transform .35s cubic-bezier(.4, 0, .2, 1); z-index: 41; }
