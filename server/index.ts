@@ -691,14 +691,20 @@ ATURAN:
       console.log("[agent] deepseek round", round, "result keys:", j.result ? Object.keys(j.result).join(",") : "none",
                   "success:", j.success, "errors:", JSON.stringify(j.errors)?.slice(0, 200));
       if (!j.success) return res.status(502).json({ detail: "deepseek error", errors: j.errors });
-      const msg = j.result?.message;
+      // Cloudflare deepseek mengembalikan OpenAI-shaped completion:
+      // { id, object, created, model, choices[0].message, usage }
+      const comp = j.result as unknown as {
+        message?: Msg;
+        response?: string;
+        choices?: { message?: Msg }[];
+      } | undefined;
+      const msg = comp?.message ?? comp?.choices?.[0]?.message;
       if (!msg) {
-        // beberapa model Cloudflare menaruh jawaban di result.response, bukan message
-        const alt = (j.result as { response?: string } | undefined)?.response;
+        const alt = comp?.response;
         if (typeof alt === "string" && alt.trim()) {
           return res.json({ reply: alt, relevance, tool_calls: toolCallsLog });
         }
-        return res.status(502).json({ detail: "deepseek tanpa pesan", shape: j.result ? Object.keys(j.result) : [] });
+        return res.status(502).json({ detail: "deepseek tanpa pesan", shape: j.result ? Object.keys(j.result as object) : [] });
       }
       const calls = msg.tool_calls ?? [];
       if (!calls.length) {
