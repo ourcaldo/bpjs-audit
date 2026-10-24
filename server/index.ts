@@ -188,8 +188,9 @@ async function startServer() {
   // status pemeriksaan faskes: berapa klaim sudah diflag vs total
   app.get("/api/faskes/:kode/progress", ah(async (req, res) => {
     const kode = req.params.kode;
+    const bpjs = bpjsSource(req.query.source);
     const t = await pool.query(
-      "SELECT COUNT(*)::int AS n FROM claim_evidence WHERE provider = $1", [kode]);
+      `SELECT COUNT(*)::int AS n FROM ${bpjs ? "bpjs_claim_evidence" : "claim_evidence"} WHERE provider = $1`, [kode]);
     const f = await pool.query(`
       SELECT COUNT(*)::int AS n,
              COUNT(*) FILTER (WHERE finding = 'fraud')::int AS fraud,
@@ -581,6 +582,10 @@ async function startServer() {
   ];
 
   const runTool = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+    // kode PRV#### = kelompok faskes data BPJS; RS#### = faskes sintetis
+    const kodeIsBpjs = typeof args.kode === "string" && /^PRV\d+/.test(args.kode);
+    const scoreTable = kodeIsBpjs ? "bpjs_faskes_scores" : "faskes_scores";
+    const evTable = kodeIsBpjs ? "bpjs_claim_evidence" : "claim_evidence";
     switch (name) {
       case "get_faskes_scores": {
         const { rows } = await pool.query(`
@@ -588,7 +593,7 @@ async function startServer() {
                  skor_los::float8, skor_upcoding::float8, ip_n_claims::int, op_n_claims::int,
                  los_outlier_rate::float8, los_excess_mean::float8, excess_cost_sum::float8,
                  ip_dx_changed_rate::float8, ip_n_dx_mean::float8, ip_amt_ratio_mean::float8
-          FROM faskes_scores WHERE provider = $1`, [args.kode]);
+          FROM ${scoreTable} WHERE provider = $1`, [args.kode]);
         return rows[0] ?? { detail: "faskes tidak ditemukan" };
       }
       case "get_claim_evidence": {
@@ -598,7 +603,7 @@ async function startServer() {
           SELECT claim_id, setting, cbg, umur::int AS umur, los::int AS los,
                  peer_median::float8, excess::int AS excess, outlier::int AS outlier,
                  dx_change::int AS dx_change, n_dx::int AS n_dx, amt_ratio::float8
-          FROM claim_evidence WHERE provider = $1 ${setting ? "AND setting = $2" : ""}
+          FROM ${evTable} WHERE provider = $1 ${setting ? "AND setting = $2" : ""}
           ORDER BY (COALESCE(excess,0)/10.0 + COALESCE(outlier,0)*0.4
                     + GREATEST(COALESCE(amt_ratio,1) - 1, 0)/4.0) DESC NULLS LAST, claim_id
           LIMIT ${setting ? "$3" : "$2"}`,

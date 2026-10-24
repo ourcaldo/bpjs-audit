@@ -171,8 +171,13 @@ function AboutPanel() {
     <li>Sinyal LOS hanya berlaku untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan nilai klaim.</li>
     <li>Skor merupakan alat memprioritaskan audit — bukan vonis. Penetapan status fraud tetap melalui pemeriksaan oleh auditor, dan vonis itulah yang mengajari sistem.</li>
     <li>Ambang skor disesuaikan dengan kapasitas audit: ambang lebih rendah menangkap lebih banyak kasus (recall naik), ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik).</li>
-    <li>Data yang ditampilkan merupakan data sintetis untuk keperluan prototipe, mengikuti struktur kode INA-CBG sesuai Permenkes Nomor 26 Tahun 2021. Metodologi telah diuji pada data sampel publikasi resmi BPJS (Data Sampel Reguler Edisi 2025).</li>
-  </ol><div className="about-divider" /><p className="about-footer">Klarity merupakan prototipe yang dibangun untuk keperluan kompetisi. Seluruh angka berasal dari data sintetis skala nasional tahun 2025 dan tidak merepresentasikan kondisi aktual fasilitas kesehatan.</p></section>;
+    <li>Mode <b>Data Sintetis</b> (default) menampilkan 37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes Nomor 26 Tahun 2021 — dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes.</li>
+    <li>Mode <b>Data BPJS</b> menampilkan <b>Data Sampel Reguler Edisi 2025</b> — data klaim asli yang dipublikasikan resmi oleh BPJS Kesehatan: 1,7 juta klaim FKRTL tahun 2024 (195.544 rawat inap + 1,5 juta rawat jalan) dari 2.057 kelompok faskes di 38 provinsi.</li>
+    <li>Proses data BPJS: file resmi (.dta) dikonversi oleh skrip <code>adapt_bpjs_sample.py</code> tanpa mengubah satu baris logika skoring — bukti klaim integrasi "data Anda, kontrak kami". Engine yang sama memproses keduanya.</li>
+    <li>Privasi data BPJS: ID rumah sakit sengaja dihapus (masking) oleh BPJS dalam sampel publikasi — karena itu mode ini menampilkan <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Tidak ada data peserta yang dapat diidentifikasi; angka tampilan adalah sample-observed tanpa bobot sampel (PSTV15), bukan estimasi nasional.</li>
+    <li>Pengujian pada data BPJS menghasilkan perbaikan nyata: dimensi jenis tindakan (operatif/intervensi) ditambahkan ke pembanding biaya setelah ditemukan campuran operasi-konsultasi yang menghasilkan rasio semu.</li>
+    <li>Sistem tidak memerlukan perubahan apa pun untuk memproses data produksi BPJS yang memuat kode PPK — tinggal diberi akses.</li>
+  </ol><div className="about-divider" /><p className="about-footer">Klarity merupakan prototipe yang dibangun untuk keperluan kompetisi. Mode Data Sintetis memakai data buatan skala nasional 2025; mode Data BPJS memakai sampel publikasi resmi BPJS yang telah dianonimkan. Keduanya tidak merepresentasikan vonis atas fasilitas kesehatan mana pun.</p></section>;
 }
 
 // ---- Panel chat asisten (right panel, selalu render + handle geser) ----
@@ -514,15 +519,15 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
       <RiskBadge score={facility.skor_gabungan} id="dBadge" />
     </div>
     <StatBlocks id="dStats" items={detailStats} />
-    {source !== "bpjs" && <div className="check-progress">
+    <div className="check-progress">
       <div className="check-progress-copy"><ClipboardCheck size={16} /><span>Pemeriksaan: <b>{progress ? fmtNumber(progress.flagged) : "…"}</b> dari <b>{progress ? fmtNumber(progress.total) : "…"}</b> klaim sudah ditandai</span>
         {progress && progress.last_verdict && <span className="last-verdict-chip">vonis terakhir: {VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label ?? progress.last_verdict}</span>}
       </div>
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
-    </div>}
+    </div>
     <section className="panel evidence-panel">
       <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Bukti klaim asli dari sampel publikasi BPJS — hanya untuk dibaca." : "Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis."}</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
-      <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th>{source !== "bpjs" && <th>Hasil Periksa</th>}</tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
+      <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
         const flagged = flags[claim.claim_id];
         return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>
           <td className="claim-id">{claim.claim_id}</td>
@@ -536,21 +541,21 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
           <td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td>
           <td className="num-cell">{fmtNumber(claim.n_dx)}</td>
           <td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td>
-          {source !== "bpjs" && <td className="flag-cell">
+          <td className="flag-cell">
             <select className="flag-select" value={flagged ?? ""} disabled={flagBusy === claim.claim_id}
               onChange={(e) => { const v = e.target.value; if (v) flagClaim(claim.claim_id, v); else if (flagged) unflagClaim(claim.claim_id); }}>
               <option value="">— belum —</option>
               {FINDING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-          </td>}
+          </td>
         </tr>; })}</tbody></table></div>
       <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
       <p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan vonis faskes.</p>
     </section>
     <AboutPanel />
-    {source !== "bpjs" && progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
-    {source !== "bpjs" && <button className="chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>}
-    {source !== "bpjs" && <button className="history-handle edge-tab" type="button" aria-label={histOpen ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={() => setHistOpen(!histOpen)}>{histOpen ? "›" : "‹"}</button>}
+    {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
+    <button className="chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>
+    <button className="history-handle edge-tab" type="button" aria-label={histOpen ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={() => setHistOpen(!histOpen)}>{histOpen ? "›" : "‹"}</button>
     <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} width={chatW} setWidth={setChatW} />
     <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} width={histW} setWidth={setHistW} />
   </div>;
