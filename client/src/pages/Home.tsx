@@ -215,6 +215,19 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // riwayat chat tersimpan di DB (audit trail) - muat saat buka faskes
+  useEffect(() => {
+    fetchJson<{ items: { role: "user" | "assistant"; text: string; tool_calls: { name: string }[] | null }[] }>(
+      `/api/agent/chat/${facility.kode}`)
+      .then((r) => {
+        if (r.items.length > 0)
+          setMessages(r.items.map((it) => ({
+            role: it.role === "user" ? "user" as const : "ai" as const,
+            text: it.text,
+            tools: it.tool_calls ?? undefined,
+          })));
+      }).catch(() => { });
+  }, [facility.kode]);
   const chips = ["Kenapa risikonya tinggi?", "Ringkas outlier LOS", "Ada klaim dengan koding mencurigakan?"];
   const send = (text: string) => {
     if (!text.trim() || busy) return;

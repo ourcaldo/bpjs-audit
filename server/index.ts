@@ -639,6 +639,15 @@ async function startServer() {
     return j;
   };
 
+  // riwayat chat agent per faskes (audit trail - bagian bukti kerja auditor)
+  app.get("/api/agent/chat/:kode", ah(async (req, res) => {
+    const { rows } = await pool.query(`
+      SELECT role, text, tool_calls, created_at AS at
+      FROM agent_chat WHERE provider = $1
+      ORDER BY id ASC LIMIT 100`, [req.params.kode]);
+    res.json({ items: rows });
+  }));
+
   // POST /api/agent/chat - guardrail -> agent loop (max 8 tool rounds)
   app.post("/api/agent/chat", ah(async (req, res) => {
     if (!CF_ACCOUNT || !CF_TOKEN) return res.status(503).json({ detail: "Cloudflare env belum diset" });
@@ -663,6 +672,10 @@ async function startServer() {
     }) as { success?: boolean; result?: { answers?: { relevant?: { noul?: number } } }; errors?: unknown };
     if (!g.success) return res.status(502).json({ detail: "guardrail error", errors: g.errors });
     const relevance = g.result?.answers?.relevant?.noul ?? 0;
+    // simpan pesan user ke audit trail (chat = bagian bukti kerja auditor)
+    await pool.query(
+      "INSERT INTO agent_chat (provider, role, text) VALUES ($1, 'user', $2)",
+      [kode, message]);
     if (relevance < 0.35)
       return res.status(200).json({
         reply: "Maaf, saya hanya bisa membantu hal yang berkaitan dengan audit klaim JKN: skor risiko faskes, bukti per klaim, kode ICD-10/INA-CBG, riwayat pemeriksaan, dan status faskes.",
@@ -702,6 +715,9 @@ ATURAN:
       if (!msg) {
         const alt = comp?.response;
         if (typeof alt === "string" && alt.trim()) {
+          await pool.query(
+            "INSERT INTO agent_chat (provider, role, text, tool_calls) VALUES ($1, 'assistant', $2, $3)",
+            [kode, alt, JSON.stringify(toolCallsLog)]);
           return res.json({ reply: alt, relevance, tool_calls: toolCallsLog });
         }
         return res.status(502).json({ detail: "deepseek tanpa pesan", shape: j.result ? Object.keys(j.result as object) : [] });
@@ -709,6 +725,9 @@ ATURAN:
       const calls = msg.tool_calls ?? [];
       if (!calls.length) {
         const reply = typeof msg.content === "string" ? msg.content : (j.result?.response ?? "");
+        await pool.query(
+          "INSERT INTO agent_chat (provider, role, text, tool_calls) VALUES ($1, 'assistant', $2, $3)",
+          [kode, reply, JSON.stringify(toolCallsLog)]);
         return res.json({ reply, relevance, tool_calls: toolCallsLog });
       }
       messages.push(msg);
