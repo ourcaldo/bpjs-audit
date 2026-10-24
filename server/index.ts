@@ -474,6 +474,43 @@ async function startServer() {
       ? path.resolve(__dirname, "public")
       : path.resolve(__dirname, "..", "dist", "public");
 
+  // ---- Track B: AI agent (clef-flash guardrail + deepseek agent + tools) ----
+  const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const CF_TOKEN = process.env.CLOUDFLARE_AUTH_TOKEN;
+  const CF_BASE = (model: string) =>
+    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/ai/run/${model}`;
+
+  // tes konektivitas env + kedua model (dipakai juga buat verifikasi deploy)
+  app.get("/api/agent/status", ah(async (_req, res) => {
+    res.json({
+      env_ok: Boolean(CF_ACCOUNT && CF_TOKEN),
+      account: CF_ACCOUNT ? `${CF_ACCOUNT.slice(0, 4)}…` : null,
+    });
+  }));
+
+  app.post("/api/agent/guardrail", ah(async (req, res) => {
+    if (!CF_ACCOUNT || !CF_TOKEN) return res.status(503).json({ detail: "Cloudflare env belum diset" });
+    const text = typeof req.body?.text === "string" ? req.body.text : "";
+    if (!text) return res.status(422).json({ detail: "text wajib" });
+    const r = await fetch(CF_BASE("@cf/cloudflare/clef-flash"), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${CF_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "clef-flash",
+        state: text,
+        questions: {
+          relevant: {
+            type: "noul",
+            instructions: "Is this input relevant to BPJS JKN claim auditing (fraud risk scoring, claim evidence, INA-CBG codes, ICD-10 diagnosis, length of stay, upcoding, faskes audit priority)?",
+          },
+        },
+      }),
+    });
+    const j = await r.json() as { success?: boolean; errors?: unknown; result?: { answers?: Record<string, unknown> } };
+    if (!j.success) return res.status(502).json({ detail: "clef-flash error", errors: j.errors });
+    res.json({ answer: j.result?.answers?.relevant });
+  }));
+
   app.use(express.static(staticPath));
 
   // Handle client-side routing - serve index.html for all routes
