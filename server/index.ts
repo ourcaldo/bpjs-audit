@@ -7,7 +7,7 @@ import pg from "pg";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ponytail: relaxed TLS check — Neon demo service; strict verify if this ever holds real data
+// ponytail: relaxed TLS check - Neon demo service; strict verify if this ever holds real data
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -20,7 +20,7 @@ const ah =
       res.status(500).json({ detail: e instanceof Error ? e.message : String(e) }));
 
 // -------------------------------------------------------------------------
-// API — port 1:1 dari api/main.py (FastAPI). Satu service, satu origin.
+// API - port 1:1 dari api/main.py (FastAPI). Satu service, satu origin.
 // -------------------------------------------------------------------------
 const CHRONIC =
   "((p.chronic_1=1)::int + (p.chronic_2=1)::int + (p.chronic_3=1)::int + " +
@@ -294,7 +294,7 @@ async function startServer() {
     res.status(201).json(rows[0]);
   }));
 
-  // POST /api/klaim — input satu klaim rawat inap, langsung diskor terhadap
+  // POST /api/klaim - input satu klaim rawat inap, langsung diskor terhadap
   // baseline pembanding siklus berjalan (fallback hierarkis fine → CBG →
   // global, kelebihan dipotong di nol). Peringkat faskes diperbarui saat
   // itu juga. Baseline penuh tetap bulanan.
@@ -332,7 +332,7 @@ async function startServer() {
     try {
       await client.query("BEGIN");
 
-      // baseline LOS — hierarki region-aware (engine/run_db.py versi d76606f):
+      // baseline LOS - hierarki region-aware (engine/run_db.py versi d76606f):
       // parent chain region → cbg → cbg×region (shrinkage w=n/(n+k), k=10),
       // lalu fine cbg×umur×komorbid×region×kelas bila group >= k.
       const ageband = umur < 1 ? null : umur <= 40 ? 0 : umur <= 60 ? 1 : umur <= 75 ? 2 : 3;
@@ -374,7 +374,7 @@ async function startServer() {
           if (dr.rows[0].n >= SHRINK_K) fallback = "dx_region";
         }
       }
-      // fine group (region-aware) — bila ada, GANTI parent chain
+      // fine group (region-aware) - bila ada, GANTI parent chain
       // (semantik sama dengan api/main.py: return fine blend, bukan gabungan)
       if (faskesCtx.region !== null && faskesCtx.kelas_rs) {
         const fr = await statsSql(
@@ -395,7 +395,7 @@ async function startServer() {
       const admit_dx = typeof b.admit_dx === "string" && b.admit_dx ? b.admit_dx : null;
       const dx_change = admit_dx && !dx.includes(admit_dx) ? 1 : 0;
       // proc band: none/operatif/intervensi (ICD-9-CM: tanpa proc / < 8700 /
-      // 8700-9999) — cegah campuran operasi/intervensi vs konsultasi dalam
+      // 8700-9999) - cegah campuran operasi/intervensi vs konsultasi dalam
       // satu peer group (temuan data riil BPJS 2025). Tidak ada kolom
       // proc_band di DB; dihitung dari proc1-6 di SQL.
       const PROC_BAND_EXPR = `CASE WHEN regexp_replace(
@@ -477,7 +477,7 @@ async function startServer() {
   }));
 
   // -------------------------------------------------------------------------
-  // Statis — build React (dist/public)
+  // Statis - build React (dist/public)
   // -------------------------------------------------------------------------
   const staticPath =
     process.env.NODE_ENV === "production"

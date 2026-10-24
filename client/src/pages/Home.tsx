@@ -80,11 +80,11 @@ const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
 };
 
 const fmtDecimal = (value: number | null, digits = 3) =>
-  value === null || value === undefined ? "—" : value.toFixed(digits).replace(".", ",");
+  value === null || value === undefined ? "-" : value.toFixed(digits).replace(".", ",");
 const fmtNumber = (value: number | null) =>
-  value === null || value === undefined ? "—" : new Intl.NumberFormat("id-ID").format(value);
+  value === null || value === undefined ? "-" : new Intl.NumberFormat("id-ID").format(value);
 const fmtRupiah = (value: number | null) => {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1).replace(".", ",")} M`;
   if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1).replace(".", ",")} jt`;
   return `Rp ${new Intl.NumberFormat("id-ID").format(Math.round(value))}`;
@@ -137,7 +137,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
 }
 
 function Header({ onLogout }: { onLogout: () => void }) {
-  return <header className="app-header"><div className="header-brand"><LogoMark /><div><h1>Klarity <span>— Peringkat Risiko Faskes</span></h1><p>Prototipe mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor merupakan prioritas audit, bukan vonis fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo</span><ChevronRight size={15} /></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></header>;
+  return <header className="app-header"><div className="header-brand"><LogoMark /><div><h1>Klarity <span>- Peringkat Risiko Faskes</span></h1><p>Prototipe mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor merupakan prioritas audit, bukan vonis fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo</span><ChevronRight size={15} /></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></header>;
 }
 
 function StatBlocks({ items, id }: { items: { label: string; value: string; accent?: boolean }[]; id?: string }) {
@@ -159,24 +159,24 @@ function PriorityTable({ list, page, goPage, openDetail }: { list: Faskes[]; pag
 
 function AboutPanel() {
   return <section className="panel about-panel"><div className="section-kicker"><SlidersHorizontal size={17} /><span>TENTANG SISTEM SKORING</span></div><ol className="about-list">
-    <li><b>Skor Gabungan (composite)</b> adalah rata-rata skor modul LOS dan upcoding, dihitung dari persentil sinyal pada skala 0–1, dan menjadi dasar peringkat prioritas audit. Rumusnya transparan: setiap angka dapat ditelusuri hingga klaim asal dan dihitung ulang manual — inilah jangkar auditabilitas sistem.</li>
+    <li><b>Skor Gabungan (composite)</b> adalah rata-rata skor modul LOS dan upcoding, dihitung dari persentil sinyal pada skala 0–1, dan menjadi dasar peringkat prioritas audit. Rumusnya transparan: setiap angka dapat ditelusuri hingga klaim asal dan dihitung ulang manual - inilah jangkar auditabilitas sistem.</li>
     <li><b>Skor LOS (Prolonged Length of Stay)</b> mengukur kecenderungan perpanjangan hari rawat inap di luar kebutuhan medis, dihitung dari proporsi klaim yang melampaui P90 kelompok pembanding (peer) dan rata-rata kelebihan hari rawat.</li>
     <li><b>Skor Upcoding</b> mengukur indikasi peningkatan beratnya klaim, dihitung dari tiga sinyal: diagnosis masuk yang hilang dari diagnosis akhir (DxChanged), jumlah kode diagnosis yang diklaim (NDx), dan rasio nilai klaim terhadap nilai klaim sejenis (AmtRatio).</li>
-    <li><b>Skor RF (skor_gabungan_rf)</b> adalah skor kedua yang dihasilkan model Random Forest — ratusan pohon keputusan yang dilatih dari data berlabel dan memberi suara (voting) untuk setiap faskes. Saat ini base model dilatih dari data sintetis berlabel; model akan dilatih ulang dari vonis auditor nyata begitu jumlahnya cukup (±100 vonis). Skor RF berjalan di samping composite, bukan menggantikannya.</li>
+    <li><b>Skor RF (skor_gabungan_rf)</b> adalah skor kedua yang dihasilkan model Random Forest - ratusan pohon keputusan yang dilatih dari data berlabel dan memberi suara (voting) untuk setiap faskes. Saat ini base model dilatih dari data sintetis berlabel; model akan dilatih ulang dari vonis auditor nyata begitu jumlahnya cukup (±100 vonis). Skor RF berjalan di samping composite, bukan menggantikannya.</li>
     <li><b>Divergensi dua skor</b> adalah alarm peninjauan: bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk diperiksa manusia. Composite tetap menjadi dasar peringkat; RF adalah pembanding yang terus belajar.</li>
-    <li><b>Vonis auditor (audit_outcome)</b> adalah hasil pemeriksaan nyata oleh tim audit, dicatat apa adanya dalam lima kategori: konfirmasi fraud, sebagian terkonfirmasi, bersih, masalah administratif, atau perlu tindak lanjut. Setiap vonis menjadi data latih baru — semakin banyak auditor bekerja, semakin tajam prioritas berikutnya.</li>
+    <li><b>Vonis auditor (audit_outcome)</b> adalah hasil pemeriksaan nyata oleh tim audit, dicatat apa adanya dalam lima kategori: konfirmasi fraud, sebagian terkonfirmasi, bersih, masalah administratif, atau perlu tindak lanjut. Setiap vonis menjadi data latih baru - semakin banyak auditor bekerja, semakin tajam prioritas berikutnya.</li>
     <li><b>Sampel kontrol acak</b>: setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya. Tanpa ini, model hanya belajar dari pilihan sistemnya sendiri; sampel acak menghasilkan contoh jujur dari faskes yang bersih.</li>
-    <li>Setiap klaim dibandingkan dengan kelompok pembanding: kode INA-CBG, rentang umur, tingkat komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur) yang serupa — sehingga RS tersier yang memang merawat kasus berat tidak salah terbaca sebagai anomali.</li>
-    <li>Nilai "wajar" (median) dan ambang anomali (P90) diturunkan dari statistik seluruh klaim dalam kelompok pembanding tersebut — bukan dari patokan luar. Kelompok dengan data terbatas menggunakan fallback hierarkis ke kelompok yang lebih luas.</li>
+    <li>Setiap klaim dibandingkan dengan kelompok pembanding: kode INA-CBG, rentang umur, tingkat komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur) yang serupa - sehingga RS tersier yang memang merawat kasus berat tidak salah terbaca sebagai anomali.</li>
+    <li>Nilai "wajar" (median) dan ambang anomali (P90) diturunkan dari statistik seluruh klaim dalam kelompok pembanding tersebut - bukan dari patokan luar. Kelompok dengan data terbatas menggunakan fallback hierarkis ke kelompok yang lebih luas.</li>
     <li>Sinyal LOS hanya berlaku untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan nilai klaim.</li>
-    <li>Skor merupakan alat memprioritaskan audit — bukan vonis. Penetapan status fraud tetap melalui pemeriksaan oleh auditor, dan vonis itulah yang mengajari sistem.</li>
+    <li>Skor merupakan alat memprioritaskan audit - bukan vonis. Penetapan status fraud tetap melalui pemeriksaan oleh auditor, dan vonis itulah yang mengajari sistem.</li>
     <li>Ambang skor disesuaikan dengan kapasitas audit: ambang lebih rendah menangkap lebih banyak kasus (recall naik), ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik).</li>
-    <li>Mode <b>Data Sintetis</b> (default) menampilkan 37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes Nomor 26 Tahun 2021 — dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes.</li>
-    <li>Mode <b>Data BPJS</b> menampilkan <b>Data Sampel Reguler Edisi 2025</b> — data klaim asli yang dipublikasikan resmi oleh BPJS Kesehatan: 1,7 juta klaim FKRTL tahun 2024 (195.544 rawat inap + 1,5 juta rawat jalan) dari 2.057 kelompok faskes di 38 provinsi.</li>
-    <li>Proses data BPJS: file resmi (.dta) dikonversi oleh skrip <code>adapt_bpjs_sample.py</code> tanpa mengubah satu baris logika skoring — bukti klaim integrasi "data Anda, kontrak kami". Engine yang sama memproses keduanya.</li>
-    <li>Privasi data BPJS: ID rumah sakit sengaja dihapus (masking) oleh BPJS dalam sampel publikasi — karena itu mode ini menampilkan <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Tidak ada data peserta yang dapat diidentifikasi; angka tampilan adalah sample-observed tanpa bobot sampel (PSTV15), bukan estimasi nasional.</li>
+    <li>Mode <b>Data Sintetis</b> (default) menampilkan 37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes Nomor 26 Tahun 2021 - dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes.</li>
+    <li>Mode <b>Data BPJS</b> menampilkan <b>Data Sampel Reguler Edisi 2025</b> - data klaim asli yang dipublikasikan resmi oleh BPJS Kesehatan: 1,7 juta klaim FKRTL tahun 2024 (195.544 rawat inap + 1,5 juta rawat jalan) dari 2.057 kelompok faskes di 38 provinsi.</li>
+    <li>Proses data BPJS: file resmi (.dta) dikonversi oleh skrip <code>adapt_bpjs_sample.py</code> tanpa mengubah satu baris logika skoring - bukti klaim integrasi "data Anda, kontrak kami". Engine yang sama memproses keduanya.</li>
+    <li>Privasi data BPJS: ID rumah sakit sengaja dihapus (masking) oleh BPJS dalam sampel publikasi - karena itu mode ini menampilkan <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Tidak ada data peserta yang dapat diidentifikasi; angka tampilan adalah sample-observed tanpa bobot sampel (PSTV15), bukan estimasi nasional.</li>
     <li>Pengujian pada data BPJS menghasilkan perbaikan nyata: dimensi jenis tindakan (operatif/intervensi) ditambahkan ke pembanding biaya setelah ditemukan campuran operasi-konsultasi yang menghasilkan rasio semu.</li>
-    <li>Sistem tidak memerlukan perubahan apa pun untuk memproses data produksi BPJS yang memuat kode PPK — tinggal diberi akses.</li>
+    <li>Sistem tidak memerlukan perubahan apa pun untuk memproses data produksi BPJS yang memuat kode PPK - tinggal diberi akses.</li>
   </ol><div className="about-divider" /><p className="about-footer">Klarity merupakan prototipe yang dibangun untuk keperluan kompetisi. Mode Data Sintetis memakai data buatan skala nasional 2025; mode Data BPJS memakai sampel publikasi resmi BPJS yang telah dianonimkan. Keduanya tidak merepresentasikan vonis atas fasilitas kesehatan mana pun.</p></section>;
 }
 
@@ -355,10 +355,10 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, 
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
         {canChange && <div className="verdict-edit">
-          <h5>{progress?.last_verdict ? (stale ? "Perubahan klaim setelah keputusan terakhir — perbarui status faskes" : "Ubah Status Faskes") : "Tetapkan Status Faskes"}</h5>
+          <h5>{progress?.last_verdict ? (stale ? "Perubahan klaim setelah keputusan terakhir - perbarui status faskes" : "Ubah Status Faskes") : "Tetapkan Status Faskes"}</h5>
           <div className="verdict-edit-row">
             <select className="verdict-edit-select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih status faskes">
-              <option value="">— pilih status —</option>
+              <option value="">- pilih status -</option>
               {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan"}</button>
@@ -372,7 +372,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, 
           <tbody>{data.flags.map((f) => <tr key={f.claim_id}>
             <td className="history-ref">{f.claim_id}</td>
             <td><span className={`finding-tag f-${f.finding}`}>{FINDING_OPTIONS.find((o) => o.value === f.finding)?.label ?? f.finding}</span></td>
-            <td className="history-by">{f.audited_by ?? "—"}</td>
+            <td className="history-by">{f.audited_by ?? "-"}</td>
             <td className="history-date">{fmtDateTime(f.at)}</td>
           </tr>)}</tbody>
         </table></div>)}
@@ -384,7 +384,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, 
             <td><span className={`verdict-tag ${v.verdict === "confirmed" || v.verdict === "partially" ? "tag-positive" : "tag-negative"}`}>
               {VERDICT_OPTIONS.find((o) => o.value === v.verdict)?.label ?? v.verdict}</span>
               {v.auditor_notes && <span className="history-note">{v.auditor_notes}</span>}</td>
-            <td className="history-by">{v.audited_by ?? "—"}</td>
+            <td className="history-by">{v.audited_by ?? "-"}</td>
             <td className="history-date">{fmtDateTime(v.decided_at)}</td>
           </tr>)}</tbody>
         </table></div>)}
@@ -436,7 +436,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   return (
     <div className="verdict-bar" role="dialog" aria-label="Usulan vonis faskes">
       <span className="vb-icon"><ClipboardCheck size={18} /></span>
-      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " — vonis berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
+      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " - vonis berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
       <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
         {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -507,7 +507,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
 
   const totalPages = Math.max(1, Math.ceil(total / CLAIMS_PAGE_SIZE));
   const detailStats = [{ label: "Skor Gabungan", value: fmtDecimal(facility.skor_gabungan) },
-    { label: "Skor RF", value: facility.skor_gabungan_rf != null ? fmtDecimal(facility.skor_gabungan_rf) : "—" },
+    { label: "Skor RF", value: facility.skor_gabungan_rf != null ? fmtDecimal(facility.skor_gabungan_rf) : "-" },
     { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) },
     { label: "Klaim Diperiksa", value: progress ? `${fmtNumber(progress.flagged)} / ${fmtNumber(progress.total)}` : "…" },
     { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
@@ -515,7 +515,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
   return <div id="view-detail" className="view-detail">
     <div className="detail-topbar">
       <button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
-      <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi — kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
+      <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit - {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi - kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
       <RiskBadge score={facility.skor_gabungan} id="dBadge" />
     </div>
     <StatBlocks id="dStats" items={detailStats} />
@@ -526,25 +526,25 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
     </div>
     <section className="panel evidence-panel">
-      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Bukti klaim asli dari sampel publikasi BPJS — hanya untuk dibaca." : "Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis."}</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
+      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Bukti klaim asli dari sampel publikasi BPJS - hanya untuk dibaca." : "Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis."}</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
       <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
         const flagged = flags[claim.claim_id];
         return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>
           <td className="claim-id">{claim.claim_id}</td>
           <td>{claim.setting === "inpatient" ? "Rawat Inap" : "Rawat Jalan"}</td>
-          <td>{claim.cbg ?? "—"}</td>
+          <td>{claim.cbg ?? "-"}</td>
           <td className="num-cell">{fmtNumber(claim.umur)}</td>
           <td className="num-cell">{fmtNumber(claim.los)}</td>
           <td className="num-cell">{fmtDecimal(claim.peer_median, 1)}</td>
           <td className="num-cell bold-cell">{fmtDecimal(claim.excess, 1)}</td>
-          <td>{claim.outlier ? <span className="yes-mark">Ya</span> : "—"}</td>
-          <td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td>
+          <td>{claim.outlier ? <span className="yes-mark">Ya</span> : "-"}</td>
+          <td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "-"}</td>
           <td className="num-cell">{fmtNumber(claim.n_dx)}</td>
           <td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td>
           <td className="flag-cell">
             <select className="flag-select" value={flagged ?? ""} disabled={flagBusy === claim.claim_id}
               onChange={(e) => { const v = e.target.value; if (v) flagClaim(claim.claim_id, v); else if (flagged) unflagClaim(claim.claim_id); }}>
-              <option value="">— belum —</option>
+              <option value="">- belum -</option>
               {FINDING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </td>
@@ -618,8 +618,8 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   const setQueryAndReset = (value: string) => { setQuery(value); setPage(1); };
   const setOnlyEvAndReset = (value: boolean) => { setOnlyEv(value); setPage(1); };
   if (facility) return <><Header onLogout={onLogout} /><main className="app-main"><DetailView facility={facility} onBack={showMain} source={source} /></main></>;
-  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini — unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
-{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas — vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
+  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini - unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
+{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas - vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
 }
 
 export default function Home() {
