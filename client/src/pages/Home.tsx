@@ -25,6 +25,7 @@ const PAGE_SIZE = 15;
 const CLAIMS_PAGE_SIZE = 15;
 
 type Faskes = {
+  group_label?: string | null;
   peringkat: number;
   kode: string;
   skor_gabungan: number;
@@ -439,7 +440,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   );
 }
 
-function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void }) {
+function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: () => void; source: "sintetis" | "bpjs" }) {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -478,7 +479,7 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   useEffect(() => {
     setLoading(true);
     fetchJson<{ items: Claim[]; total: number }>(
-      `/api/faskes/${facility.kode}/claims?page=${page}&page_size=${CLAIMS_PAGE_SIZE}`)
+      `/api/faskes/${facility.kode}/claims?page=${page}&page_size=${CLAIMS_PAGE_SIZE}&source=${source}`)
       .then((res) => { setClaims(res.items); setTotal(res.total); })
       .catch(() => { setClaims([]); setTotal(0); })
       .finally(() => setLoading(false));
@@ -509,19 +510,19 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   return <div id="view-detail" className="view-detail">
     <div className="detail-topbar">
       <button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
-      <div className="detail-title"><span className="eyebrow">FASKES TERPILIH</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2></div>
+      <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit — {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi — kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
       <RiskBadge score={facility.skor_gabungan} id="dBadge" />
     </div>
     <StatBlocks id="dStats" items={detailStats} />
-    <div className="check-progress">
+    {source !== "bpjs" && <div className="check-progress">
       <div className="check-progress-copy"><ClipboardCheck size={16} /><span>Pemeriksaan: <b>{progress ? fmtNumber(progress.flagged) : "…"}</b> dari <b>{progress ? fmtNumber(progress.total) : "…"}</b> klaim sudah ditandai</span>
         {progress && progress.last_verdict && <span className="last-verdict-chip">vonis terakhir: {VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label ?? progress.last_verdict}</span>}
       </div>
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
-    </div>
+    </div>}
     <section className="panel evidence-panel">
-      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis.</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
-      <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
+      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Bukti klaim asli dari sampel publikasi BPJS — hanya untuk dibaca." : "Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis."}</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
+      <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th>Umur</th><th>LOS (hari)</th><th>Median Peer</th><th>Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th>Jumlah DX</th><th>Rasio Nilai</th>{source !== "bpjs" && <th>Hasil Periksa</th>}</tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
         const flagged = flags[claim.claim_id];
         return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>
           <td className="claim-id">{claim.claim_id}</td>
@@ -535,21 +536,21 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
           <td>{claim.dx_change ? <span className="yes-mark">Ya</span> : "—"}</td>
           <td className="num-cell">{fmtNumber(claim.n_dx)}</td>
           <td className="num-cell">{fmtDecimal(claim.amt_ratio, 2)}</td>
-          <td className="flag-cell">
+          {source !== "bpjs" && <td className="flag-cell">
             <select className="flag-select" value={flagged ?? ""} disabled={flagBusy === claim.claim_id}
               onChange={(e) => { const v = e.target.value; if (v) flagClaim(claim.claim_id, v); else if (flagged) unflagClaim(claim.claim_id); }}>
               <option value="">— belum —</option>
               {FINDING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-          </td>
+          </td>}
         </tr>; })}</tbody></table></div>
       <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button className="ghost-button" disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button className="ghost-button" disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
       <p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan vonis faskes.</p>
     </section>
     <AboutPanel />
-    {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
-    <button className="chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>
-    <button className="history-handle edge-tab" type="button" aria-label={histOpen ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={() => setHistOpen(!histOpen)}>{histOpen ? "›" : "‹"}</button>
+    {source !== "bpjs" && progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
+    {source !== "bpjs" && <button className="chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>}
+    {source !== "bpjs" && <button className="history-handle edge-tab" type="button" aria-label={histOpen ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={() => setHistOpen(!histOpen)}>{histOpen ? "›" : "‹"}</button>}
     <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} width={chatW} setWidth={setChatW} />
     <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} width={histW} setWidth={setHistW} />
   </div>;
@@ -576,10 +577,17 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // sumber data: sintetis (demo per-faskes penuh) | bpjs (kelompok faskes,
+  // ID RS dihapus BPJS - view-only)
+  const [source, setSource] = useState<"sintetis" | "bpjs">("sintetis");
   useEffect(() => {
-    fetchJson<Faskes[]>("/api/faskes").then(setFaskes).catch(() => setError(true));
-    fetchJson<Stats>("/api/stats").then(setStats).catch(() => { });
-  }, []);
+    setError(false);
+    fetchJson<Faskes[]>(`/api/faskes?source=${source}`).then(setFaskes).catch(() => setError(true));
+    fetchJson<Stats>(`/api/stats?source=${source}`).then(setStats).catch(() => { });
+    setDetailCode(null);
+    window.location.hash = "";
+    setPage(1);
+  }, [source]);
 
   const filteredList = useMemo(() => faskes.filter((item) => item.skor_gabungan >= threshold / 100 && item.kode.toLowerCase().includes(query.toLowerCase()) && (!onlyEv || item.klaim_ri > 0)), [faskes, threshold, query, onlyEv]);
   const facility = faskes.find((item) => item.kode === detailCode);
@@ -604,8 +612,9 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   const setThresholdAndReset = (value: number) => { setThreshold(value); setPage(1); };
   const setQueryAndReset = (value: string) => { setQuery(value); setPage(1); };
   const setOnlyEvAndReset = (value: boolean) => { setOnlyEv(value); setPage(1); };
-  if (facility) return <><Header onLogout={onLogout} /><main className="app-main"><DetailView facility={facility} onBack={showMain} /></main></>;
-  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="intro-actions"><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div></div>{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas — vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
+  if (facility) return <><Header onLogout={onLogout} /><main className="app-main"><DetailView facility={facility} onBack={showMain} source={source} /></main></>;
+  return <><Header onLogout={onLogout} /><main className="app-main" id="view-main"><div className="page-intro"><div><p className="eyebrow">RUANG KERJA AUDITOR</p><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini — unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
+{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas — vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} /><ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} onlyEv={onlyEv} setOnlyEv={setOnlyEvAndReset} /><PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} /><AboutPanel /></>}</main></>;
 }
 
 export default function Home() {

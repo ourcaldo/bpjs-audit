@@ -90,25 +90,32 @@ async function startServer() {
   const server = createServer(app);
   app.use(express.json());
 
-  app.get("/api/faskes", ah(async (_req, res) => {
+  // sumber data: 'sintetis' (default) | 'bpjs' (kelompok faskes, ID RS
+  // dihapus BPJS dalam sampel publikasi - lihat group_label)
+  const bpjsSource = (q: unknown) => q === "bpjs";
+
+  app.get("/api/faskes", ah(async (req, res) => {
+    const bpjs = bpjsSource(req.query.source);
     const { rows } = await pool.query(`
       SELECT provider AS kode, peringkat::int AS peringkat,
              skor_gabungan::float8, skor_gabungan_rf::float8,
              skor_los::float8, skor_upcoding::float8,
              ip_n_claims::int AS klaim_ri, op_n_claims::int AS klaim_rj,
-             excess_cost_sum::float8 AS estimasi_rugi
-      FROM faskes_scores ORDER BY peringkat`);
+             excess_cost_sum::float8 AS estimasi_rugi,
+             ${bpjs ? "group_label" : "NULL::text AS group_label"}
+      FROM ${bpjs ? "bpjs_faskes_scores" : "faskes_scores"} ORDER BY peringkat`);
     res.json(rows);
   }));
 
-  app.get("/api/stats", ah(async (_req, res) => {
+  app.get("/api/stats", ah(async (req, res) => {
+    const bpjs = bpjsSource(req.query.source);
     const { rows } = await pool.query(`
       SELECT COUNT(*)::int AS faskes,
              COUNT(*) FILTER (WHERE ip_n_claims > 0)::int AS beri_ri,
              COALESCE(SUM(excess_cost_sum), 0)::float8 AS rugi,
              COALESCE(SUM(ip_n_claims), 0)::int AS klaim_ri,
              COALESCE(SUM(op_n_claims), 0)::int AS klaim_rj
-      FROM faskes_scores`);
+      FROM ${bpjs ? "bpjs_faskes_scores" : "faskes_scores"}`);
     res.json(rows[0]);
   }));
 
@@ -128,23 +135,25 @@ async function startServer() {
 
   app.get("/api/faskes/:kode/claims", ah(async (req, res) => {
     const kode = req.params.kode;
+    const bpjs = bpjsSource(req.query.source);
     const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
     const page_size = Math.min(100, Math.max(1, parseInt(String(req.query.page_size), 10) || 15));
-    const ex = await pool.query("SELECT 1 FROM faskes_scores WHERE provider = $1", [kode]);
+    const ex = await pool.query(
+      `SELECT 1 FROM ${bpjs ? "bpjs_faskes_scores" : "faskes_scores"} WHERE provider = $1`, [kode]);
     if (!ex.rowCount) return res.status(404).json({ detail: "faskes tidak ditemukan" });
     const { rows } = await pool.query(`
       SELECT claim_id, provider AS kode, cbg, umur::int AS umur, los::int AS los,
              peer_median::float8, excess::int AS excess, outlier::int AS outlier,
              rugi::float8, setting, dx_change::int AS dx_change,
              n_dx::int AS n_dx, amt_ratio::float8
-      FROM claim_evidence
+      FROM ${bpjs ? "bpjs_claim_evidence" : "claim_evidence"}
       WHERE provider = $1
       ORDER BY (COALESCE(excess,0)/10.0 + COALESCE(outlier,0)*0.4
                 + GREATEST(COALESCE(amt_ratio,1) - 1, 0)/4.0) DESC NULLS LAST,
                claim_id
       LIMIT $2 OFFSET $3`, [kode, page_size, (page - 1) * page_size]);
     const t = await pool.query(
-      "SELECT COUNT(*)::int AS n FROM claim_evidence WHERE provider = $1", [kode]);
+      `SELECT COUNT(*)::int AS n FROM ${bpjs ? "bpjs_claim_evidence" : "claim_evidence"} WHERE provider = $1`, [kode]);
     res.json({ items: rows, total: t.rows[0].n, page, page_size });
   }));
 
