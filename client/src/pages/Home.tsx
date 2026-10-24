@@ -560,10 +560,21 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   const [query, setQuery] = useState("");
   const [onlyEv, setOnlyEv] = useState(true);
   const [page, setPage] = useState(1);
-  const [detailCode, setDetailCode] = useState<string | null>(null);
+  // hash routing: #/faskes/RS1792 - reload-safe + deep-link ke detail faskes
+  const readHash = () => {
+    const m = window.location.hash.match(/^#\/faskes\/([A-Za-z0-9-]+)/);
+    return m ? m[1] : null;
+  };
+  const [detailCode, setDetailCode] = useState<string | null>(() => readHash());
   const [faskes, setFaskes] = useState<Faskes[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const onHash = () => setDetailCode(readHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   useEffect(() => {
     fetchJson<Faskes[]>("/api/faskes").then(setFaskes).catch(() => setError(true));
@@ -578,7 +589,7 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
     { label: "Memiliki klaim rawat inap", value: stats ? fmtNumber(stats.beri_ri) : "…" },
     { label: "Total klaim (RI + RJ)", value: stats ? fmtNumber(stats.klaim_ri + stats.klaim_rj) : "…" },
     { label: "Total estimasi kerugian (LOS)", value: stats ? fmtRupiah(stats.rugi) : "…" }];
-  const openDetail = (kode: string) => { setDetailCode(kode); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const openDetail = (kode: string) => { window.location.hash = `#/faskes/${kode}`; window.scrollTo({ top: 0, behavior: "smooth" }); };
   const [randomOpen, setRandomOpen] = useState(false);
   const [randomList, setRandomList] = useState<Faskes[]>([]);
   const [randomLoading, setRandomLoading] = useState(false);
@@ -588,7 +599,7 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
       .catch(() => setRandomList([])).finally(() => setRandomLoading(false));
     setRandomOpen(true);
   };
-  const showMain = () => { setDetailCode(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const showMain = () => { window.location.hash = ""; window.scrollTo({ top: 0, behavior: "smooth" }); };
   const goPage = (nextPage: number) => setPage(Math.max(1, Math.min(Math.ceil(filteredList.length / PAGE_SIZE) || 1, nextPage)));
   const setThresholdAndReset = (value: number) => { setThreshold(value); setPage(1); };
   const setQueryAndReset = (value: string) => { setQuery(value); setPage(1); };
