@@ -688,9 +688,18 @@ ATURAN:
         tools: AGENT_TOOLS,
         reasoning_effort: "low",
       }) as { success?: boolean; result?: { message?: Msg & { tool_calls?: { id: string; function: { name: string; arguments: string } }[] }, response?: string }, errors?: unknown };
+      console.log("[agent] deepseek round", round, "result keys:", j.result ? Object.keys(j.result).join(",") : "none",
+                  "success:", j.success, "errors:", JSON.stringify(j.errors)?.slice(0, 200));
       if (!j.success) return res.status(502).json({ detail: "deepseek error", errors: j.errors });
       const msg = j.result?.message;
-      if (!msg) return res.status(502).json({ detail: "deepseek tanpa pesan" });
+      if (!msg) {
+        // beberapa model Cloudflare menaruh jawaban di result.response, bukan message
+        const alt = (j.result as { response?: string } | undefined)?.response;
+        if (typeof alt === "string" && alt.trim()) {
+          return res.json({ reply: alt, relevance, tool_calls: toolCallsLog });
+        }
+        return res.status(502).json({ detail: "deepseek tanpa pesan", shape: j.result ? Object.keys(j.result) : [] });
+      }
       const calls = msg.tool_calls ?? [];
       if (!calls.length) {
         const reply = typeof msg.content === "string" ? msg.content : (j.result?.response ?? "");
