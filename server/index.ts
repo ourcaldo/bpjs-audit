@@ -649,20 +649,21 @@ async function startServer() {
     if (!message) return res.status(422).json({ detail: "text wajib" });
     if (!kode) return res.status(422).json({ detail: "kode faskes wajib (konteks)" });
 
-    // 1. guardrail clef-flash
+    // 1. guardrail clef-flash - input dinilai DALAM KONTEKS dashboard audit
+    // (kalimat pendek ala auditor seperti "skor RS1792 berapa" wajar di sini)
     const g = await cfRun("@cf/cloudflare/clef-flash", {
       model: "clef-flash",
-      state: message,
+      state: `Konteks: chat di dalam dashboard Audit Intelligence BPJS Kesehatan. Auditor sedang memeriksa faskes ${kode}. Input dari auditor: "${message}"`,
       questions: {
         relevant: {
           type: "noul",
-          instructions: "Is this input relevant to BPJS JKN claim auditing (fraud risk scoring, claim evidence, INA-CBG codes, ICD-10 diagnosis, length of stay, upcoding, faskes audit priority)?",
+          instructions: "Is this auditor input relevant to BPJS JKN claim auditing (fraud risk scoring, claim evidence, INA-CBG codes, ICD-10 diagnosis, length of stay, upcoding, faskes audit priority)? Off-topic means completely unrelated subjects like recipes, weather, jokes, or general chat.",
         },
       },
     }) as { success?: boolean; result?: { answers?: { relevant?: { noul?: number } } }; errors?: unknown };
     if (!g.success) return res.status(502).json({ detail: "guardrail error", errors: g.errors });
     const relevance = g.result?.answers?.relevant?.noul ?? 0;
-    if (relevance < 0.5)
+    if (relevance < 0.35)
       return res.status(200).json({
         reply: "Maaf, saya hanya bisa membantu hal yang berkaitan dengan audit klaim JKN: skor risiko faskes, bukti per klaim, kode ICD-10/INA-CBG, riwayat pemeriksaan, dan status faskes.",
         relevance, tool_calls: [],
