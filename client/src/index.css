@@ -244,8 +244,9 @@ tbody tr:focus-visible { position: relative; z-index: 1; outline: 2px solid var(
 .chat-bubble-ai .md-list { margin: 0 0 6px; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .chat-bubble-ai .md-list li { font-size: 14px; line-height: 1.5; }
 .chat-bubble-ai .md-gap { height: 8px; }
-.chat-bubble-ai .md-table { border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; }
-.chat-bubble-ai .md-table td { border: 1px solid var(--c-border); padding: 4px 10px; background: var(--c-surface); }
+.chat-bubble-ai .md-table-wrap { max-width: 100%; overflow-x: auto; margin: 4px 0 8px; border: 1px solid var(--c-border); border-radius: 6px; }
+.chat-bubble-ai .md-table { border-collapse: collapse; font-size: 13px; }
+.chat-bubble-ai .md-table td { border: 1px solid var(--c-border); padding: 4px 10px; background: var(--c-surface); white-space: nowrap; }
 .chat-bubble-ai code { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; font-family: ui-monospace, monospace; }
 .chat-name { font-size: 11px; font-weight: 700; color: var(--c-primary); text-transform: uppercase; letter-spacing: .05em; }
 .chat-m-user { align-self: flex-end; background: var(--c-primary); color: var(--c-text-inv); padding: 10px 14px; border-radius: 14px 14px 2px 14px; }

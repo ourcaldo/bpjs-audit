@@ -191,13 +191,13 @@ function renderMarkdown(text: string) {
   const out: string[] = [];
   let inList = false, inTable = false;
   const endList = () => { if (inList) { out.push("</ul>"); inList = false; } };
-  const endTable = () => { if (inTable) { out.push("</tbody></table>"); inTable = false; } };
+  const endTable = () => { if (inTable) { out.push("</tbody></table></div>"); inTable = false; } };
   for (const raw of lines) {
     const line = raw.trimEnd();
     if (/^\|.*\|$/.test(line)) {
       const cells = line.split("|").slice(1, -1).map((c) => c.trim());
       if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue; // separator row
-      if (!inTable) { endList(); out.push("<table class=\"md-table\"><tbody>"); inTable = true; }
+      if (!inTable) { endList(); out.push("<div class=\"md-table-wrap\"><table class=\"md-table\"><tbody>"); inTable = true; }
       out.push(`<tr>${cells.map((c) => `<td>${bold(c)}</td>`).join("")}</tr>`);
       continue;
     }
