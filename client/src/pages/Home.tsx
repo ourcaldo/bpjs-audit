@@ -209,7 +209,31 @@ function renderMarkdown(text: string) {
   return out.join("");
 }
 
-function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolean; onClose: () => void }) {
+
+// resizer drag: tarik tepi kiri panel untuk ubah lebar (min 320, max 60vw)
+function PanelResizer({ width, setWidth }: { width: number; setWidth: (w: number) => void }) {
+  const start = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = width;
+    const move = (ev: PointerEvent) => {
+      setWidth(Math.round(Math.min(window.innerWidth * 0.6, Math.max(320, startW + (startX - ev.clientX)))));
+    };
+    const up = () => {
+      el.classList.remove("dragging");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    el.classList.add("dragging");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return <div className="panel-resizer" onPointerDown={start} title="Tarik untuk ubah lebar" />;
+}
+
+function ChatPanel({ facility, open, onClose, width, setWidth }: { facility: Faskes; open: boolean; onClose: () => void; width: number; setWidth: (w: number) => void }) {
   const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string; tools?: { name: string }[] }[]>([
     { role: "ai", text: `Halo! Saya bisa membantu membaca bukti audit ${facility.kode}: menjelaskan skor, merangkum pola anomali, atau menilai konsistensi koding klaim. Saya mengambil data langsung dari database.` },
   ]);
@@ -247,7 +271,8 @@ function ChatPanel({ facility, open, onClose }: { facility: Faskes; open: boolea
       .finally(() => setBusy(false));
   };
   return (
-    <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Klarity Agent">
+    <aside className={`chat-panel ${open ? "chat-open" : ""}`} aria-label="Klarity Agent" style={{ "--panel-w": `${width}px` } as React.CSSProperties}>
+      {open && <PanelResizer width={width} setWidth={setWidth} />}
       <div className="chat-head">
         <div className="chat-bot-mark">K</div>
         <div><h4>Klarity Agent</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
@@ -295,7 +320,7 @@ type HistoryData = { flags: { claim_id: string; finding: string; notes: string |
 const AUDITOR_NAME = "A. Prasetyo";
 const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number; progress: Progress | null; onSaved: () => void }) {
+function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, width, setWidth }: { facility: Faskes; open: boolean; onClose: () => void; refreshKey: number; progress: Progress | null; onSaved: () => void; width: number; setWidth: (w: number) => void }) {
   const [data, setData] = useState<HistoryData | null>(null);
   const [selected, setSelected] = useState("");
   const [saving, setSaving] = useState(false);
@@ -316,8 +341,8 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved }
   };
   return (
     <>
-    <button className="panel-handle history-handle edge-tab" type="button" aria-label={open ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={onClose}>{open ? "›" : "‹"}</button>
-    <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan">
+    <aside className={`history-panel ${open ? "panel-open" : ""}`} aria-label="Riwayat pemeriksaan" style={{ "--panel-w": `${width}px` } as React.CSSProperties}>
+      {open && <PanelResizer width={width} setWidth={setWidth} />}
       <div className="history-head"><History size={16} /><div><h4>Riwayat Pemeriksaan Faskes</h4><small>{facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
@@ -419,6 +444,15 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  // lebar panel (resize) + tab offset mengikuti panel yang terbuka
+  const [chatW, setChatW] = useState(400);
+  const [histW, setHistW] = useState(400);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--chat-tab-x", chatOpen ? `${chatW}px` : "0px");
+  }, [chatOpen, chatW]);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--hist-tab-x", histOpen ? `${histW}px` : "0px");
+  }, [histOpen, histW]);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [flags, setFlags] = useState<Record<string, string>>({});
   const [flagBusy, setFlagBusy] = useState<string | null>(null);
@@ -512,9 +546,10 @@ function DetailView({ facility, onBack }: { facility: Faskes; onBack: () => void
     </section>
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
-    <button className="panel-handle chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>
-    <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} />
-    <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />
+    <button className="chat-handle edge-tab" type="button" aria-label={chatOpen ? "Sembunyikan asisten" : "Tampilkan asisten"} onClick={() => setChatOpen(!chatOpen)}>{chatOpen ? "›" : "‹"}</button>
+    <button className="history-handle edge-tab" type="button" aria-label={histOpen ? "Sembunyikan riwayat" : "Tampilkan riwayat"} onClick={() => setHistOpen(!histOpen)}>{histOpen ? "›" : "‹"}</button>
+    <ChatPanel facility={facility} open={chatOpen} onClose={() => setChatOpen(!chatOpen)} width={chatW} setWidth={setChatW} />
+    <HistoryPanel facility={facility} open={histOpen} onClose={() => setHistOpen(!histOpen)} refreshKey={refreshKey} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} width={histW} setWidth={setHistW} />
   </div>;
 }
 
