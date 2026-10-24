@@ -210,7 +210,9 @@ function renderMarkdown(text: string) {
 }
 
 
-// resizer drag: tarik tepi kiri panel untuk ubah lebar (min 320, max 60vw)
+// resizer drag: tarik tepi kiri panel untuk ubah lebar (min 400, max 800 = 2x min)
+const PANEL_MIN_W = 400;
+const PANEL_MAX_W = 800;
 function PanelResizer({ width, setWidth }: { width: number; setWidth: (w: number) => void }) {
   const start = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -219,7 +221,7 @@ function PanelResizer({ width, setWidth }: { width: number; setWidth: (w: number
     const startX = e.clientX;
     const startW = width;
     const move = (ev: PointerEvent) => {
-      setWidth(Math.round(Math.min(window.innerWidth * 0.6, Math.max(320, startW + (startX - ev.clientX)))));
+      setWidth(Math.round(Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, startW + (startX - ev.clientX)))));
     };
     const up = () => {
       el.classList.remove("dragging");
