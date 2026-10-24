@@ -105,8 +105,10 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .stat-accent strong { color: var(--risk-high-text); }
 .stat-accent .stat-ico { background: var(--risk-high-bg); color: var(--risk-high-text); }
 .page-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
-.crumbs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--c-text-2); font-size: 13px; }
+.crumbs-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.crumbs { display: flex; align-items: center; gap: 6px; color: var(--c-text-2); font-size: 13px; }
 .crumbs b { color: var(--c-primary-dark); font-weight: 600; }
+.crumbs-row .last-sync { margin-top: 0; }
 .page-intro h2 { margin: 0; color: var(--c-primary-dark); font-size: 30px; line-height: 38px; font-weight: 700; letter-spacing: -.01em; }
 .intro-copy { margin: 6px 0 0; max-width: 620px; color: var(--c-text-2); }
 .intro-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -165,10 +167,15 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--c-primary); }
 .money-cell { color: var(--c-text); font-weight: 700; }
 
 .empty-note { padding: 48px 16px; color: var(--c-text-2); text-align: center; }
-.pager { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px 20px; color: var(--c-text-2); font-size: 14px; }
-.pager-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-.pager-controls strong { margin: 0 8px; color: var(--c-primary-dark); font-weight: 600; white-space: nowrap; }
-.ghost-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--c-primary); border-radius: 5px; background: var(--c-surface); color: var(--c-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: background 150ms, transform 150ms; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px; color: var(--c-text-2); font-size: 13px; }
+.pager-controls { display: flex; align-items: center; gap: 6px; }
+.pager-controls button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid var(--c-border); border-radius: 6px; background: var(--c-surface); color: var(--c-primary-dark); font-weight: 600; cursor: pointer; }
+.pager-controls button:hover:not(:disabled) { border-color: var(--c-primary); }
+.pager-controls button:disabled { color: #b3bacb; cursor: not-allowed; }
+.pager-controls .pager-status { min-width: auto; padding: 0 4px; height: auto; border: 0; background: transparent; }
+.pager-controls strong { color: var(--c-primary-dark); font-weight: 600; white-space: nowrap; }
+.ghost-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 14px; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface); color: var(--c-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color 150ms, background 150ms; }
+.ghost-button:hover:not(:disabled) { border-color: var(--c-primary); }
 .ghost-button:hover:not(:disabled) { background: var(--c-primary-soft); }
 .ghost-button:disabled { opacity: .48; cursor: not-allowed; }
 .about-panel { margin-top: 20px; overflow: hidden; }
@@ -203,8 +210,8 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--c-primary); }
 .evidence-footnote { margin: 0 20px 20px; padding-top: 16px; }
 
 /* ---- Source toggle (sintetis | bpjs) ---- */
-.source-toggle { display: inline-flex; border: 1px solid var(--c-border); border-radius: 100px; overflow: hidden; background: var(--c-surface); }
-.source-opt { padding: 9px 16px; font: 600 14px 'Barlow', sans-serif; color: var(--c-text-2); background: transparent; cursor: pointer; border: 0; }
+.source-toggle { display: inline-flex; padding: 3px; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface); }
+.source-opt { padding: 8px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--c-text-2); font: 600 14px 'Barlow', sans-serif; cursor: pointer; }
 .source-opt:hover { color: var(--c-primary-dark); }
 .src-active { background: var(--c-primary); color: var(--c-text-inv); }
 .src-active:hover { color: var(--c-text-inv); }
