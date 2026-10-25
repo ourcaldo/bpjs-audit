@@ -192,6 +192,8 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--c-primary); }
 .ghost-button:disabled { opacity: .48; cursor: not-allowed; }
 .about-panel { margin-top: 20px; overflow: hidden; }
 .about-panel .panel-heading { cursor: pointer; user-select: none; }
+.section-kicker { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--c-primary); font-weight: 700; letter-spacing: .12em; font-size: 13px; text-transform: uppercase; }
+.section-kicker span { display: inline; }
 .about-chev { color: var(--c-text-2); transition: transform .25s; }
 .about-panel.open .about-chev { transform: rotate(180deg); }
 .method-body { display: none; padding: 20px; border-top: 1px solid var(--c-border); }

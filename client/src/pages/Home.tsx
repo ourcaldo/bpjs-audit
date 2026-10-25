@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Building2,
@@ -628,10 +628,16 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   // sumber data: sintetis (demo per-faskes penuh) | bpjs (kelompok faskes,
   // ID RS dihapus BPJS - view-only)
   const [source, setSource] = useState<"sintetis" | "bpjs">("sintetis");
+  const firstSourceRun = useRef(true);
   useEffect(() => {
     setError(false);
     fetchJson<Faskes[]>(`/api/faskes?source=${source}`).then(setFaskes).catch(() => setError(true));
     fetchJson<Stats>(`/api/stats?source=${source}`).then(setStats).catch(() => { });
+    if (firstSourceRun.current) {
+      // mount pertama: pertahankan hash (deep-link / reload di halaman detail)
+      firstSourceRun.current = false;
+      return;
+    }
     setDetailCode(null);
     window.location.hash = "";
     setPage(1);
