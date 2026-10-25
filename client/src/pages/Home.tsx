@@ -591,7 +591,6 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
           </td>
         </tr>; })}</tbody></table></div>
       <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
-      <p className="evidence-footnote">Median peer dihitung dari kelompok pembanding: kode INA-CBG × rentang umur × tingkat komorbiditas (rawat inap), atau diagnosis × jenis tindakan (rawat jalan), dengan fallback hierarkis saat kelompok kecil. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan rasio nilai. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan status faskes. Tabel ini dapat digunakan sebagai lampiran pemeriksaan.</p>
     </section>
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
