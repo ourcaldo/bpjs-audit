@@ -142,7 +142,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
 
 function Header({ onLogout, active }: { onLogout: () => void; active: "prioritas" | "bukti" }) {
   return <header className="app-header">
-    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b> · Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor adalah prioritas audit, bukan penilaian fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
+    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b> · Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor adalah prioritas audit, bukan penilaian fraud</p></div></div><div className="header-actions"><span className="mode-chip">Live Demo</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
     <nav className="app-nav"><span className={active === "prioritas" ? "on" : ""}>Prioritas Audit</span><span className={active === "bukti" ? "on" : ""}>Bukti Klaim</span></nav>
   </header>;
 }
