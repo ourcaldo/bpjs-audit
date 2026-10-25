@@ -93,7 +93,7 @@ const fmtRupiah = (value: number | null) => {
   if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1).replace(".", ",")} jt`;
   return `Rp ${new Intl.NumberFormat("id-ID").format(Math.round(value))}`;
 };
-const risk = (score: number) => score >= 0.7 ? { label: "TINGGI", className: "risk-high" } : score >= 0.4 ? { label: "MENENGAH", className: "risk-medium" } : { label: "RENDAH", className: "risk-low" };
+const risk = (score: number) => score >= 0.7 ? { label: "TINGGI", className: "risk-high" } : score >= 0.4 ? { label: "MENENGAH", className: "risk-medium" } : score > 0 ? { label: "RENDAH", className: "risk-low" } : { label: "TIDAK DINILAI", className: "risk-medium" };
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return <div className={compact ? "logo-mark logo-mark-compact" : "logo-mark"} aria-label="BPJS Kesehatan">BPJS</div>;
@@ -202,6 +202,7 @@ function AboutPanel() {
           ["Sampel kontrol acak", "Setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya, agar model tidak hanya belajar dari pilihannya sendiri."],
           ["Vonis auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan vonis."],
           ["Ambang skor", "Ambang lebih rendah menangkap lebih banyak kasus (recall naik); ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik)."],
+          ["Faskes tanpa rawat inap", "Kedua modul inti (LOS, upcoding) adalah modul rawat inap; klaim rawat jalan tidak memiliki umur, kode CBG, dan median pembanding yang dibutuhkan metodologi ini. Faskes yang hanya memiliki klaim rawat jalan karenanya TIDAK DIRANKING - bukan disembunyikan, tetapi ditandai TIDAK DINILAI. Klaim rawat jalannya tetap tampil sebagai bukti pendukung."],
         ])}
         {grp("Sumber data", [
           ["Data Sintetis (default)", "37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes No. 26/2021 - dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes."],
