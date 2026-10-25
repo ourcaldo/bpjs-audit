@@ -547,7 +547,6 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
   const detailStats = [{ label: "Skor Gabungan", value: fmtDecimal(facility.skor_gabungan) },
     { label: "Skor RF", value: facility.skor_gabungan_rf != null ? fmtDecimal(facility.skor_gabungan_rf) : "-" },
     { label: "Skor LOS", value: fmtDecimal(facility.skor_los) }, { label: "Skor Upcoding", value: fmtDecimal(facility.skor_upcoding) },
-    { label: "Klaim Diperiksa", value: progress ? `${fmtNumber(progress.flagged)} / ${fmtNumber(progress.total)}` : "…" },
     { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
   const progressPct = progress && progress.total ? Math.min(100, Math.round((progress.flagged / progress.total) * 100)) : 0;
   return <div id="view-detail" className="view-detail">
