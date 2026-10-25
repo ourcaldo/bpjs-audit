@@ -404,6 +404,7 @@ async function startServer() {
         WHEN regexp_replace(COALESCE(proc1,proc2,proc3,proc4,proc5,proc6),
           '\\D.*', '')::int < 8700
         THEN 'operatif' ELSE 'intervensi' END`;
+      const PROC_KEY_EXPR = `COALESCE(regexp_replace(proc1, '\D.*', ''), 'none')`;
       const req_proc = Array.isArray(b.proc) ? b.proc.filter(Boolean) : [];
       const proc_band = req_proc.length === 0 ? "none"
         : req_proc.some((p: string) => {
@@ -414,11 +415,21 @@ async function startServer() {
       let amt_ratio: number | null = null;
       let peer_level: string | null = null;
       if (peer_key) {
+        const procKey = req_proc.length && /^\s*\d/.test(req_proc[0])
+          ? req_proc[0].replace(/\D.*/, "") : "none";
+        // cascade: (dx, proc) -> (dx, band) -> (band)
         let r2 = await client.query(`
           SELECT COUNT(*)::int AS n,
                  percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS med
           FROM klaim_rawat_inap WHERE COALESCE(admit_dx, dx1) = $1
-            AND ${PROC_BAND_EXPR} = $2`, [peer_key, proc_band]);
+            AND ${PROC_KEY_EXPR} = $2`, [peer_key, procKey]);
+        if (!(r2.rows[0].n >= 10 && r2.rows[0].med)) {
+          r2 = await client.query(`
+            SELECT COUNT(*)::int AS n,
+                   percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS med
+            FROM klaim_rawat_inap WHERE COALESCE(admit_dx, dx1) = $1
+              AND ${PROC_BAND_EXPR} = $2`, [peer_key, proc_band]);
+        }
         if (!(r2.rows[0].n >= 10 && r2.rows[0].med)) {
           r2 = await client.query(`
             SELECT COUNT(*)::int AS n,
