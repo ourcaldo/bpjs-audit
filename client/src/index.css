@@ -221,7 +221,6 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--c-primary); }
 .evidence-panel table { min-width: 960px; }
 .bold-cell { color: var(--c-primary-dark); font-weight: 700; }
 .yes-mark { color: var(--risk-high-text); font-weight: 700; }
-.evidence-footnote { margin: 0 20px 20px; padding-top: 16px; }
 
 /* ---- Source toggle (sintetis | bpjs) ---- */
 .source-toggle { display: inline-flex; padding: 3px; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface); }
