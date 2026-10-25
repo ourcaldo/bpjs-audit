@@ -157,7 +157,7 @@ async function startServer() {
     res.json({ items: rows, total: t.rows[0].n, page, page_size });
   }));
 
-  // ---- Track A: vonis auditor (feedback loop) ----
+  // ---- Track A: penilaian auditor (feedback loop) ----
   const VERDICTS = ["confirmed", "partially", "clean", "administrative", "needs_followup"] as const;
   const CLAIM_FINDINGS = ["fraud", "administrative", "clean", "needs_review"] as const;
 
@@ -202,7 +202,7 @@ async function startServer() {
     const v = await pool.query(`
       SELECT verdict, decided_at FROM audit_outcome WHERE provider = $1
       ORDER BY decided_at DESC LIMIT 1`, [kode]);
-    // bar vonis perlu muncul lagi hanya bila ada flag LEBIH BARU dari vonis terakhir
+    // bar penilaian perlu muncul lagi hanya bila ada flag LEBIH BARU dari penilaian terakhir
     const lastFlag = f.rows[0].last_flag_at ? new Date(f.rows[0].last_flag_at) : null;
     const lastVerdictAt = v.rows[0]?.decided_at ? new Date(v.rows[0].decided_at) : null;
     res.json({
@@ -214,7 +214,7 @@ async function startServer() {
     });
   }));
 
-  // riwayat lengkap satu faskes: flag klaim + vonis, urut waktu (panel riwayat)
+  // riwayat lengkap satu faskes: flag klaim + penilaian, urut waktu (panel riwayat)
   app.get("/api/faskes/:kode/history", ah(async (req, res) => {
     const flags = await pool.query(`
       SELECT claim_id, finding, notes, audited_by, flagged_at AS at
@@ -227,7 +227,7 @@ async function startServer() {
     res.json({ flags: flags.rows, verdicts: verdicts.rows });
   }));
 
-  // riwayat vonis satu faskes
+  // riwayat penilaian satu faskes
   app.get("/api/verdicts/:kode", ah(async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, provider AS kode, period, verdict, auditor_notes, sample_kind,
@@ -236,7 +236,7 @@ async function startServer() {
     res.json({ items: rows });
   }));
 
-  // sampel kontrol acak: N faskes dari populasi penuh, belum divonis siklus ini.
+  // sampel kontrol acak: N faskes dari populasi penuh, belum dinilai siklus ini.
   // Dasar kebijakan anti-selection-bias Track A: auditor memeriksa sampel acak
   // sama seriusnya dengan daftar prioritas -> model beli contoh jujur dari
   // faskes yang bersih, bukan hanya dari pilihan sistem sendiri.
@@ -258,7 +258,7 @@ async function startServer() {
     res.json({ items: rows });
   }));
 
-  // status loop pembelajaran: jumlah vonis nyata vs ambang retrain
+  // status loop pembelajaran: jumlah penilaian nyata vs ambang retrain
   app.get("/api/verdicts", ah(async (_req, res) => {
     const { rows } = await pool.query(`
       SELECT COUNT(*)::int AS total,
@@ -269,7 +269,7 @@ async function startServer() {
     res.json({ threshold: 100, ...rows[0] });
   }));
 
-  // catat satu vonis auditor
+  // catat satu penilaian auditor
   app.post("/api/verdicts", ah(async (req, res) => {
     const b = req.body ?? {};
     const kode = b.kode, verdict = b.verdict;

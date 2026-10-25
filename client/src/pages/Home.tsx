@@ -194,13 +194,13 @@ function AboutPanel() {
           ["Skor Gabungan (composite)", "Rata-rata skor modul LOS dan upcoding dari persentil sinyal skala 0-1. Dasar peringkat; setiap angka dapat ditelusuri hingga klaim asal dan dihitung ulang manual."],
           ["Skor LOS", "Proporsi klaim yang melampaui P90 kelompok pembanding dan rata-rata kelebihan hari rawat. Hanya untuk rawat inap."],
           ["Skor Upcoding", "Tiga sinyal: perubahan diagnosis (DxChanged), jumlah kode diagnosis (NDx), dan rasio nilai klaim (AmtRatio)."],
-          ["Skor RF", "Model Random Forest terlatih yang berjalan di samping composite sebagai pembanding, bukan menggantikannya. Base model dari label sintetis; retrain otomatis dari vonis auditor saat vonis nyata mencapai 100."],
+          ["Skor RF", "Model Random Forest terlatih yang berjalan di samping composite sebagai pembanding, bukan menggantikannya. Base model dari label sintetis; retrain otomatis dari penilaian auditor saat penilaian nyata mencapai 100."],
         ])}
         {grp("Metode & tata kelola", [
           ["Kelompok pembanding", "INA-CBG, rentang umur, komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur). Nilai wajar (median) dan ambang anomali (P90) berasal dari statistik data itu sendiri, bukan patokan luar."],
           ["Divergensi dua skor", "Bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk ditinjau manusia - bukan keputusan otomatis."],
           ["Sampel kontrol acak", "Setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya, agar model tidak hanya belajar dari pilihannya sendiri."],
-          ["Vonis auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan vonis."],
+          ["Penilaian auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan vonis."],
           ["Ambang skor", "Ambang lebih rendah menangkap lebih banyak kasus (recall naik); ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik)."],
           ["Faskes tanpa rawat inap", "Kedua modul inti (LOS, upcoding) adalah modul rawat inap; klaim rawat jalan tidak memiliki umur, kode CBG, dan median pembanding yang dibutuhkan metodologi ini. Faskes yang hanya memiliki klaim rawat jalan karenanya TIDAK DIRANKING - bukan disembunyikan, tetapi ditandai TIDAK DINILAI. Klaim rawat jalannya tetap tampil sebagai bukti pendukung."],
         ])}
@@ -373,7 +373,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, 
   useEffect(() => {
     if (open) fetchJson<HistoryData>(`/api/faskes/${facility.kode}/history`).then(setData).catch(() => setData(null));
   }, [facility.kode, open, refreshKey]);
-  // ubah/isi vonis dari panel riwayat - bukan dari floating bar
+  // ubah/isi penilaian dari panel riwayat - bukan dari floating bar
   const canChange = progress && progress.flagged > 0;
   const stale = progress?.verdict_stale ?? false;
   useEffect(() => { if (progress) setSelected(suggestVerdict(progress)); }, [refreshKey, open]);
@@ -450,9 +450,9 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   const [selected, setSelected] = useState("");
   const [saving, setSaving] = useState(false);
   const suggestion = suggestVerdict(progress);
-  // bar muncul hanya saat: ada flag DAN belum ada vonis untuk flag-flag itu.
-  // Vonis tersimpan + tidak ada flag baru = bar tidak muncul lagi, sampai
-  // auditor mengubah flag (verdict_stale dari API: flag > vonis terakhir).
+  // bar muncul hanya saat: ada flag DAN belum ada penilaian untuk flag-flag itu.
+  // Penilaian tersimpan + tidak ada flag baru = bar tidak muncul lagi, sampai
+  // auditor mengubah flag (verdict_stale dari API: flag > penilaian terakhir).
   const show = progress.flagged > 0 && !progress.last_verdict;
   const coverage = progress.total ? progress.flagged / progress.total : 0;
   const lowCoverage = coverage < 0.9;
@@ -472,13 +472,13 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
       .finally(() => setSaving(false));
   };
   return (
-    <div className="verdict-bar" role="dialog" aria-label="Usulan vonis faskes">
+    <div className="verdict-bar" role="dialog" aria-label="Usulan penilaian faskes">
       <span className="vb-icon"><ClipboardCheck size={18} /></span>
-      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan vonis <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " - vonis berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
-      <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih vonis">
+      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan penilaian <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " - penilaian berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
+      <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih penilaian">
         {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan vonis"}</button>
+      <button className="primary-button" type="button" onClick={save} disabled={!selected || saving}>{saving ? "Menyimpan…" : "Simpan penilaian"}</button>
     </div>
   );
 }
@@ -562,7 +562,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
     <StatBlocks id="dStats" items={detailStats} />
     <div className="check-progress">
       <div className="check-progress-copy"><ClipboardCheck size={16} /><span>Pemeriksaan: <b>{progress ? fmtNumber(progress.flagged) : "…"}</b> dari <b>{progress ? fmtNumber(progress.total) : "…"}</b> klaim sudah ditandai</span>
-        {progress && progress.last_verdict && <span className="last-verdict-chip">vonis terakhir: {VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label ?? progress.last_verdict}</span>}
+        {progress && progress.last_verdict && <span className="last-verdict-chip">penilaian terakhir: {VERDICT_OPTIONS.find((o) => o.value === progress.last_verdict)?.label ?? progress.last_verdict}</span>}
       </div>
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
     </div>
@@ -673,7 +673,7 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   return <><Header onLogout={onLogout} active="prioritas" /><main className="app-main" id="view-main">
 <div className="crumbs-row"><div className="crumbs">Ruang Kerja Auditor <span>/</span> <b>Prioritas Pemeriksaan</b></div><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div>
 <div className="page-intro"><div><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini - unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
-{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah divonis siklus ini. Periksa sama seriusnya dengan daftar prioritas - vonis dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} />
+{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah dinilai siklus ini. Periksa sama seriusnya dengan daftar prioritas - penilaian dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} />
 <div className="dist-strip"><h4>Distribusi risiko</h4><div className="dist-bar"><span style={{ width: `${(distHigh / distTotal) * 100}%`, background: "var(--risk-high-text)" }} /><span style={{ width: `${(distMid / distTotal) * 100}%`, background: "var(--risk-medium-text)" }} /><span style={{ width: `${(distLow / distTotal) * 100}%`, background: "var(--risk-low-text)" }} /></div><div className="dist-legend"><span><i style={{ background: "var(--risk-high-text)" }} />Tinggi <b>{fmtNumber(distHigh)}</b></span><span><i style={{ background: "var(--risk-medium-text)" }} />Sedang <b>{fmtNumber(distMid)}</b></span><span><i style={{ background: "var(--risk-low-text)" }} />Rendah <b>{fmtNumber(distLow)}</b></span></div></div>
 <PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} controls={<ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} layanan={layanan} setLayanan={setLayananAndReset} risk={risk} setRisk={setRiskAndReset} />} /><AboutPanel /></>}</main></>;
 }
