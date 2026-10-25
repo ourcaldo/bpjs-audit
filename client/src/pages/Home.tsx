@@ -142,7 +142,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
 
 function Header({ onLogout, active }: { onLogout: () => void; active: "prioritas" | "bukti" }) {
   return <header className="app-header">
-    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b> · Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor adalah prioritas audit, bukan vonis fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
+    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b> · Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor adalah prioritas audit, bukan penilaian fraud</p></div></div><div className="header-actions"><span className="mode-chip">Prototipe</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
     <nav className="app-nav"><span className={active === "prioritas" ? "on" : ""}>Prioritas Audit</span><span className={active === "bukti" ? "on" : ""}>Bukti Klaim</span></nav>
   </header>;
 }
@@ -200,7 +200,7 @@ function AboutPanel() {
           ["Kelompok pembanding", "INA-CBG, rentang umur, komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur). Nilai wajar (median) dan ambang anomali (P90) berasal dari statistik data itu sendiri, bukan patokan luar."],
           ["Divergensi dua skor", "Bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk ditinjau manusia - bukan keputusan otomatis."],
           ["Sampel kontrol acak", "Setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya, agar model tidak hanya belajar dari pilihannya sendiri."],
-          ["Penilaian auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan vonis."],
+          ["Penilaian auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan penilaian fraud."],
           ["Ambang skor", "Ambang lebih rendah menangkap lebih banyak kasus (recall naik); ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik)."],
           ["Faskes tanpa rawat inap", "Kedua modul inti (LOS, upcoding) adalah modul rawat inap; klaim rawat jalan tidak memiliki umur, kode CBG, dan median pembanding yang dibutuhkan metodologi ini. Faskes yang hanya memiliki klaim rawat jalan karenanya TIDAK DIRANKING - bukan disembunyikan, tetapi ditandai TIDAK DINILAI. Klaim rawat jalannya tetap tampil sebagai bukti pendukung."],
         ])}
@@ -212,7 +212,7 @@ function AboutPanel() {
           ["Siap produksi", "Tidak perlu perubahan apa pun untuk data produksi BPJS yang memuat kode PPK - tinggal diberi akses."],
         ])}
       </div>
-      <p className="about-footer"><ShieldCheck size={16} />Klarity merupakan prototipe untuk keperluan kompetisi. Mode Data Sintetis memakai data buatan skala nasional 2025; mode Data BPJS memakai sampel publikasi resmi BPJS yang telah dianonimkan. Keduanya tidak merepresentasikan vonis atas fasilitas kesehatan mana pun.</p>
+      <p className="about-footer"><ShieldCheck size={16} />Klarity merupakan prototipe untuk keperluan kompetisi. Mode Data Sintetis memakai data buatan skala nasional 2025; mode Data BPJS memakai sampel publikasi resmi BPJS yang telah dianonimkan. Keduanya tidak merepresentasikan penilaian atas fasilitas kesehatan mana pun.</p>
     </div>
   </section>;
 }
@@ -567,7 +567,6 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
     </div>
     <section className="panel evidence-panel">
-      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Klaim asli dari sampel publikasi BPJS - dibaca dan dapat dibandingkan langsung dengan pembandingnya." : "Klik baris untuk menandai hasil pemeriksaan. Saat semua klaim selesai ditandai, usulan status faskes muncul otomatis."}</p></div><span className="count-badge"><FileText size={15} /><b>{fmtNumber(total)}</b> klaim</span></div>
       <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th className="num">Umur</th><th className="num">LOS (hari)</th><th className="num">Median Peer</th><th className="num">Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th className="num">Jumlah DX</th><th className="num">Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
         const flagged = flags[claim.claim_id];
         return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>

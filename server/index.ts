@@ -712,7 +712,7 @@ async function startServer() {
 Konteks: auditor sedang memeriksa faskes ${kode}.
 ATURAN:
 - Semua angka WAJIB berasal dari hasil tool call - jangan pernah mengarang angka.
-- Skor adalah prioritas audit, BUKAN vonis fraud. Jangan menuduh - sampaikan bukti.
+- Skor adalah prioritas audit, BUKAN penilaian fraud. Jangan menuduh - sampaikan bukti.
 - Anda menilai konsistensi KODING (ICD-10/INA-CBG), bukan mendiagnosis pasien.
 - Jawab ringkas, dalam Bahasa Indonesia, sebut klaim ID sebagai bukti.`;
     type Msg = { role: string; content: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[]; tool_call_id?: string; name?: string };
