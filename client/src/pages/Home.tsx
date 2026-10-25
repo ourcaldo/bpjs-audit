@@ -551,6 +551,10 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
     { label: "Estimasi Kerugian", value: fmtRupiah(facility.estimasi_rugi) }];
   const progressPct = progress && progress.total ? Math.min(100, Math.round((progress.flagged / progress.total) * 100)) : 0;
   return <div id="view-detail" className="view-detail">
+    <div className="crumbs-row">
+      <div className="crumbs"><button type="button" className="crumb-link" onClick={onBack}>Ruang Kerja Auditor</button> <span>/</span> <b>Bukti Klaim {facility.kode}</b></div>
+      <div className="last-sync"><span className="status-dot" /> {source === "bpjs" ? "Data BPJS - Sampel Reguler 2025" : "Data Sintetis - skala nasional"}</div>
+    </div>
     <div className="detail-topbar">
       <button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
       <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit - {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi - kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
@@ -564,7 +568,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
       <div className="loop-track"><span style={{ width: `${progressPct}%` }} /></div>
     </div>
     <section className="panel evidence-panel">
-      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Bukti klaim asli dari sampel publikasi BPJS - hanya untuk dibaca." : "Tandai hasil pemeriksaan per klaim. Saat semua klaim selesai ditandai, usulan vonis faskes muncul otomatis."}</p></div><span className="evidence-count"><FileText size={16} /> {fmtNumber(total)} klaim</span></div>
+      <div className="panel-heading"><div><h2>Bukti per Klaim</h2><p id="dSub">{source === "bpjs" ? "Klaim asli dari sampel publikasi BPJS - dibaca dan dapat dibandingkan langsung dengan pembandingnya." : "Klik baris untuk menandai hasil pemeriksaan. Saat semua klaim selesai ditandai, usulan status faskes muncul otomatis."}</p></div><span className="count-badge"><FileText size={15} /><b>{fmtNumber(total)}</b> klaim</span></div>
       <div className="tbl-wrap"><table aria-label="Bukti per klaim"><thead><tr><th>Klaim</th><th>Layanan</th><th>Kode CBG</th><th className="num">Umur</th><th className="num">LOS (hari)</th><th className="num">Median Peer</th><th className="num">Kelebihan (hari)</th><th>Outlier LOS</th><th>DX Berubah</th><th className="num">Jumlah DX</th><th className="num">Rasio Nilai</th><th>Hasil Periksa</th></tr></thead><tbody id="dTbody">{loading ? <tr><td colSpan={12} className="empty-note">Memuat bukti klaim…</td></tr> : claims.map((claim) => {
         const flagged = flags[claim.claim_id];
         return <tr key={claim.claim_id} className={flagged ? "row-flagged" : ""}>
@@ -588,7 +592,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
           </td>
         </tr>; })}</tbody></table></div>
       <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
-      <p className="evidence-footnote">Median peer dihitung dari kelompok kode CBG × rentang umur × tingkat komorbiditas dengan fallback hierarkis. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan vonis faskes.</p>
+      <p className="evidence-footnote">Median peer dihitung dari kelompok pembanding: kode INA-CBG × rentang umur × tingkat komorbiditas (rawat inap), atau diagnosis × jenis tindakan (rawat jalan), dengan fallback hierarkis saat kelompok kecil. Kolom LOS, median peer, dan outlier hanya terisi untuk klaim rawat inap; klaim rawat jalan dinilai melalui sinyal diagnosis dan rasio nilai. Tanda per klaim menjadi fitur model (flag_rate) dan dasar usulan status faskes. Tabel ini dapat digunakan sebagai lampiran pemeriksaan.</p>
     </section>
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}

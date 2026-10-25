@@ -114,6 +114,8 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .crumbs { display: flex; align-items: center; gap: 6px; color: var(--c-text-2); font-size: 13px; }
 .crumbs b { color: var(--c-primary-dark); font-weight: 600; }
 .crumbs-row .last-sync { margin-top: 0; }
+.crumb-link { padding: 0; border: 0; background: transparent; color: var(--c-text-2); font: 500 13px 'Barlow', sans-serif; cursor: pointer; }
+.crumb-link:hover { color: var(--c-primary-dark); text-decoration: underline; }
 .page-intro h2 { margin: 0; color: var(--c-primary-dark); font-size: 30px; line-height: 38px; font-weight: 700; letter-spacing: -.01em; }
 .intro-copy { margin: 6px 0 0; max-width: 620px; color: var(--c-text-2); }
 .intro-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
