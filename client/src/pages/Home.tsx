@@ -106,7 +106,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
       <section className="login-side" aria-label="Informasi produk">
         <div className="login-side-top"><LogoMark /><span className="side-kicker">Portal Internal</span></div>
         <div className="login-copy">
-          <p className="eyebrow light">AUDIT INTELLIGENCE</p>
+          <p className="eyebrow light">Klarity: Sistem Prioritas Audit Klaim FKRTL Berbasis Pembanding Antar-Faskes</p>
           <h1>Prioritaskan audit<br /><span>dengan bukti.</span></h1>
           <p className="login-lede">Satu ruang kerja untuk membaca sinyal anomali klaim, memeringkat faskes, dan menyiapkan pemeriksaan yang lebih terarah.</p>
           <div className="side-rule" />
@@ -141,7 +141,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
 
 function Header({ onLogout, onHome, active }: { onLogout: () => void; onHome: () => void; active: "prioritas" | "bukti" }) {
   return <header className="app-header">
-    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b>: Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes dengan data demo sintetis JKN/INA-CBG. Skor adalah prioritas audit, bukan penilaian fraud.</p></div></div><div className="header-actions"><span className="mode-chip">Live Demo</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
+    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b><span>Sistem Prioritas Audit Klaim FKRTL Berbasis Pembanding Antar-Faskes</span></h1><p>Mesin skoring risiko faskes dengan data demo sintetis JKN/INA-CBG. Skor adalah prioritas audit, bukan penilaian fraud.</p></div></div><div className="header-actions"><span className="mode-chip">Live Demo</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
     <nav className="app-nav"><button className={active === "prioritas" ? "on" : ""} type="button" onClick={onHome}>Prioritas Audit</button><span className={active === "bukti" ? "on" : ""}>Bukti Klaim</span></nav>
   </header>;
 }
