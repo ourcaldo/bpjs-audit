@@ -3,7 +3,6 @@ import {
   Activity,
   Building2,
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
   BarChart3,
   ChevronDown,
@@ -114,7 +113,7 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
           <div className="login-meta"><ShieldCheck size={18} strokeWidth={1.7} /><span>Lingkungan internal BPJS Kesehatan</span></div>
           <div className="login-meta"><LockKeyhole size={18} strokeWidth={1.7} /><span>Akses terbatas untuk auditor terotorisasi</span></div>
         </div>
-        <div className="login-footer">© 2026 BPJS Kesehatan · Klarity</div>
+        <div className="login-footer">© 2026 BPJS Kesehatan. Klarity</div>
       </section>
       <section className="login-panel">
         <div className="login-panel-inner">
@@ -133,17 +132,17 @@ function LoginView({ onLogin }: { onLogin: () => void }) {
             <button className="primary-button login-submit" type="submit">Masuk ke dashboard <ArrowRight size={17} /></button>
           </form>
           <div className="login-notice"><LockKeyhole size={16} /><span>Aktivitas Anda tercatat untuk kebutuhan keamanan dan audit internal.</span></div>
-          <p className="demo-note">Mode demo aktif · data yang ditampilkan bersifat sintetis</p>
+          <p className="demo-note">Mode demo aktif. Data yang ditampilkan bersifat sintetis.</p>
         </div>
       </section>
     </main>
   );
 }
 
-function Header({ onLogout, active }: { onLogout: () => void; active: "prioritas" | "bukti" }) {
+function Header({ onLogout, onHome, active }: { onLogout: () => void; onHome: () => void; active: "prioritas" | "bukti" }) {
   return <header className="app-header">
-    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b> · Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes · data demo sintetis JKN / INA-CBG · skor adalah prioritas audit, bukan penilaian fraud</p></div></div><div className="header-actions"><span className="mode-chip">Live Demo</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
-    <nav className="app-nav"><span className={active === "prioritas" ? "on" : ""}>Prioritas Audit</span><span className={active === "bukti" ? "on" : ""}>Bukti Klaim</span></nav>
+    <div className="hdr-row"><div className="header-brand"><LogoMark /><div><h1><b>Klarity</b>: Peringkat Risiko Faskes</h1><p>Mesin skoring risiko faskes dengan data demo sintetis JKN/INA-CBG. Skor adalah prioritas audit, bukan penilaian fraud.</p></div></div><div className="header-actions"><span className="mode-chip">Live Demo</span><button className="profile-button" type="button" aria-label="Profil auditor"><span className="profile-avatar">AP</span><span className="profile-label">A. Prasetyo<small>Auditor Senior</small></span></button><button className="logout-button" type="button" aria-label="Keluar" onClick={onLogout}>Keluar</button></div></div>
+    <nav className="app-nav"><button className={active === "prioritas" ? "on" : ""} type="button" onClick={onHome}>Prioritas Audit</button><span className={active === "bukti" ? "on" : ""}>Bukti Klaim</span></nav>
   </header>;
 }
 
@@ -177,7 +176,7 @@ function PriorityTable({ list, page, goPage, openDetail, controls }: { list: Fas
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageItems = list.slice(start, start + PAGE_SIZE);
-  return <section className="panel priority-panel">{controls}<div className="tbl-wrap"><table aria-label="Daftar prioritas audit faskes"><thead><tr><th>#</th><th>Faskes</th><th>Risiko</th><th>Skor gabungan</th><th className="num">Skor LOS</th><th className="num">Skor upcoding</th><th className="num">Klaim RI</th><th className="num">Klaim RJ</th><th className="num">Estimasi biaya LOS</th></tr></thead><tbody id="tbody">{pageItems.map((item) => <tr key={item.kode} tabIndex={0} role="button" onClick={() => openDetail(item.kode)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetail(item.kode); } }}><td><span className="rank-chip">{fmtNumber(item.peringkat)}</span></td><td className="facility-code">{item.kode}{item.group_label && <small>{item.group_label}</small>}</td><td><RiskBadge score={item.skor_gabungan} /></td><td><div className="score-cell"><span className="score-track"><span style={{ width: `${item.skor_gabungan * 100}%` }} /></span><b>{fmtDecimal(item.skor_gabungan)}</b></div></td><td className="num-cell">{fmtDecimal(item.skor_los)}</td><td className="num-cell">{fmtDecimal(item.skor_upcoding)}</td><td className="num-cell">{fmtNumber(item.klaim_ri)}</td><td className="num-cell">{fmtNumber(item.klaim_rj)}</td><td className="num-cell money-cell">{fmtRupiah(item.estimasi_rugi)}</td></tr>)}</tbody></table>{pageItems.length === 0 && <div id="emptyNote" className="empty-note">Tidak ada faskes yang memenuhi kriteria. Turunkan ambang skor atau kosongkan pencarian.</div>}</div><div className="pager" id="pager"><span>Menampilkan {list.length ? start + 1 : 0}–{Math.min(start + PAGE_SIZE, list.length)} dari {list.length || 0} faskes</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => goPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => goPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => goPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => goPage(totalPages)}>Akhir »</button></div></div></section>;
+  return <section className="panel priority-panel">{controls}<div className="tbl-wrap"><table aria-label="Daftar prioritas audit faskes"><thead><tr><th>#</th><th>Faskes</th><th>Risiko</th><th>Skor gabungan</th><th className="num">Skor LOS</th><th className="num">Skor upcoding</th><th className="num">Klaim RI</th><th className="num">Klaim RJ</th><th className="num">Estimasi biaya LOS</th></tr></thead><tbody id="tbody">{pageItems.map((item) => <tr key={item.kode} tabIndex={0} role="button" onClick={() => openDetail(item.kode)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetail(item.kode); } }}><td><span className="rank-chip">{fmtNumber(item.peringkat)}</span></td><td className="facility-code">{item.kode}{item.group_label && <small>{item.group_label}</small>}</td><td><RiskBadge score={item.skor_gabungan} /></td><td><div className="score-cell"><span className="score-track"><span style={{ width: `${item.skor_gabungan * 100}%` }} /></span><b>{fmtDecimal(item.skor_gabungan)}</b></div></td><td className="num-cell">{fmtDecimal(item.skor_los)}</td><td className="num-cell">{fmtDecimal(item.skor_upcoding)}</td><td className="num-cell">{fmtNumber(item.klaim_ri)}</td><td className="num-cell">{fmtNumber(item.klaim_rj)}</td><td className="num-cell money-cell">{fmtRupiah(item.estimasi_rugi)}</td></tr>)}</tbody></table>{pageItems.length === 0 && <div id="emptyNote" className="empty-note">Tidak ada faskes yang memenuhi kriteria. Turunkan ambang skor atau kosongkan pencarian.</div>}</div><div className="pager" id="pager"><span>Menampilkan {list.length ? start + 1 : 0} sampai {Math.min(start + PAGE_SIZE, list.length)} dari {list.length || 0} faskes</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => goPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => goPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => goPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => goPage(totalPages)}>Akhir »</button></div></div></section>;
 }
 
 function AboutPanel() {
@@ -198,18 +197,18 @@ function AboutPanel() {
         ])}
         {grp("Metode & tata kelola", [
           ["Kelompok pembanding", "INA-CBG, rentang umur, komorbiditas, region, kelas RS, dan jenis tindakan (operatif / intervensi / tanpa prosedur). Nilai wajar (median) dan ambang anomali (P90) berasal dari statistik data itu sendiri, bukan patokan luar."],
-          ["Divergensi dua skor", "Bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk ditinjau manusia - bukan keputusan otomatis."],
+          ["Divergensi dua skor", "Bila RF dan composite berbeda jauh untuk satu faskes, sistem menandainya untuk ditinjau manusia, bukan keputusan otomatis."],
           ["Sampel kontrol acak", "Setiap daftar prioritas menyertakan faskes acak dari populasi penuh yang diperiksa sama seriusnya, agar model tidak hanya belajar dari pilihannya sendiri."],
           ["Penilaian auditor", "Lima kategori hasil pemeriksaan dicatat apa adanya dan menjadi data latih baru. Skor adalah prioritas, bukan penilaian fraud."],
           ["Ambang skor", "Ambang lebih rendah menangkap lebih banyak kasus (recall naik); ambang lebih tinggi mengurangi pemeriksaan yang tidak perlu (presisi naik)."],
-          ["Faskes tanpa rawat inap", "Kedua modul inti (LOS, upcoding) adalah modul rawat inap; klaim rawat jalan tidak memiliki umur, kode CBG, dan median pembanding yang dibutuhkan metodologi ini. Faskes yang hanya memiliki klaim rawat jalan karenanya TIDAK DIRANKING - bukan disembunyikan, tetapi ditandai TIDAK DINILAI. Klaim rawat jalannya tetap tampil sebagai bukti pendukung."],
+          ["Faskes tanpa rawat inap", "Kedua modul inti (LOS, upcoding) adalah modul rawat inap; klaim rawat jalan tidak memiliki umur, kode CBG, dan median pembanding yang dibutuhkan metodologi ini. Faskes yang hanya memiliki klaim rawat jalan karenanya TIDAK DIRANKING, bukan disembunyikan, tetapi ditandai TIDAK DINILAI. Klaim rawat jalannya tetap tampil sebagai bukti pendukung."],
         ])}
         {grp("Sumber data", [
-          ["Data Sintetis (default)", "37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes No. 26/2021 - dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes."],
+          ["Data Sintetis (default)", "37 juta klaim sintetis skala nasional berformat JKN sesuai Permenkes No. 26/2021, dipakai untuk mendemonstrasikan seluruh alur kerja audit per faskes."],
           ["Data BPJS", "Sampel Reguler Edisi 2025: 1,7 juta klaim FKRTL asli 2024 dari 2.057 kelompok faskes di 38 provinsi, dikonversi via <code>adapt_bpjs_sample.py</code> tanpa mengubah logika skoring."],
           ["Privasi", "ID rumah sakit dihapus (masking) oleh BPJS dalam sampel publikasi; tampilan berupa kelompok faskes (kabupaten × kelas × kepemilikan). Angka sample-observed tanpa bobot (PSTV15), bukan estimasi nasional."],
           ["Perbaikan nyata dari data BPJS", "Dimensi jenis tindakan ditambahkan ke pembanding biaya setelah ditemukan campuran operasi-konsultasi yang menghasilkan rasio semu."],
-          ["Siap produksi", "Tidak perlu perubahan apa pun untuk data produksi BPJS yang memuat kode PPK - tinggal diberi akses."],
+          ["Siap produksi", "Tidak perlu perubahan apa pun untuk data produksi BPJS yang memuat kode PPK. Tinggal diberi akses."],
         ])}
       </div>
       <p className="about-footer"><ShieldCheck size={16} />Klarity merupakan prototipe untuk keperluan kompetisi. Mode Data Sintetis memakai data buatan skala nasional 2025; mode Data BPJS memakai sampel publikasi resmi BPJS yang telah dianonimkan. Keduanya tidak merepresentasikan penilaian atas fasilitas kesehatan mana pun.</p>
@@ -321,11 +320,11 @@ function ChatPanel({ facility, open, onClose, width, setWidth }: { facility: Fas
       {open && <PanelResizer width={width} setWidth={setWidth} />}
       <div className="chat-head">
         <div className="chat-bot-mark">K</div>
-        <div><h4>Klarity Agent</h4><small>Analisis klaim · konteks: {facility.kode}</small></div>
+        <div><h4>Klarity Agent</h4><small>Analisis klaim untuk {facility.kode}</small></div>
         {open && <button className="chat-close" type="button" aria-label="Tutup asisten" onClick={onClose}><X size={18} /></button>}
       </div>
       {open && <>
-        <div className="chat-ctx">Konteks: <b>{facility.kode}</b> · Risiko {risk(facility.skor_gabungan).label} · {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
+        <div className="chat-ctx">Konteks: <b>{facility.kode}</b>, risiko {risk(facility.skor_gabungan).label}, {fmtNumber(facility.klaim_ri + facility.klaim_rj)} klaim</div>
         <div className="chat-msgs">{messages.map((m, i) => m.role === "ai"
           ? <div className="chat-m chat-m-ai" key={i}>
               <span className="chat-name">Klarity Agent</span>
@@ -393,7 +392,7 @@ function HistoryPanel({ facility, open, onClose, refreshKey, progress, onSaved, 
         {open && <button className="chat-close" type="button" aria-label="Tutup riwayat" onClick={onClose}><X size={18} /></button>}</div>
       {open && (data ? <div className="history-body">
         {canChange && <div className="verdict-edit">
-          <h5>{progress?.last_verdict ? (stale ? "Perubahan klaim setelah keputusan terakhir - perbarui status faskes" : "Ubah Status Faskes") : "Tetapkan Status Faskes"}</h5>
+          <h5>{progress?.last_verdict ? (stale ? "Perubahan klaim setelah keputusan terakhir, perbarui status faskes" : "Ubah Status Faskes") : "Tetapkan Status Faskes"}</h5>
           <div className="verdict-edit-row">
             <select className="verdict-edit-select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih status faskes">
               <option value="">- pilih status -</option>
@@ -474,7 +473,7 @@ function VerdictBar({ facility, progress, onSaved }: { facility: Faskes; progres
   return (
     <div className="verdict-bar" role="dialog" aria-label="Usulan penilaian faskes">
       <span className="vb-icon"><ClipboardCheck size={18} /></span>
-      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan penilaian <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " - penilaian berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
+      <p><b>{fmtNumber(progress.flagged)}/{fmtNumber(progress.total)}</b> klaim sudah ditandai ({progress.fraud} fraud, {progress.admin} administrasi, {progress.clean} bersih{progress.review > 0 ? `, ${progress.review} perlu ditinjau` : ""}). Kami usulkan penilaian <b>{VERDICT_OPTIONS.find((o) => o.value === selected)?.label}</b> untuk faskes ini{lowCoverage ? " berdasarkan sampel terbatas" : ""}. Ubah kapan saja, atau konfirmasi sekarang.</p>
       <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label="Pilih penilaian">
         {VERDICT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -552,11 +551,10 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
   return <div id="view-detail" className="view-detail">
     <div className="crumbs-row">
       <div className="crumbs"><button type="button" className="crumb-link" onClick={onBack}>Ruang Kerja Auditor</button> <span>/</span> <b>Bukti Klaim {facility.kode}</b></div>
-      <div className="last-sync"><span className="status-dot" /> {source === "bpjs" ? "Data BPJS - Sampel Reguler 2025" : "Data Sintetis - skala nasional"}</div>
+      <div className="last-sync"><span className="status-dot" /> {source === "bpjs" ? "Data BPJS, Sampel Reguler 2025" : "Data Sintetis, skala nasional"}</div>
     </div>
     <div className="detail-topbar">
-      <button className="ghost-button back-button" id="btnBack" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
-      <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit - {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi - kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
+      <div className="detail-title"><span className="eyebrow">{source === "bpjs" ? "KELOMPOK FASKES TERPILIH" : "FASKES TERPILIH"}</span><h2 id="dTitle">Bukti Audit: {facility.kode}</h2>{facility.group_label && <p className="group-label">{facility.group_label}<br /><small>ID rumah sakit dihapus oleh BPJS dalam sampel publikasi, sehingga unit tampilan adalah kelompok faskes, bukan rumah sakit per satuan.</small></p>}</div>
       <RiskBadge score={facility.skor_gabungan} id="dBadge" />
     </div>
     <StatBlocks id="dStats" items={detailStats} />
@@ -589,7 +587,7 @@ function DetailView({ facility, onBack, source }: { facility: Faskes; onBack: ()
             </select>
           </td>
         </tr>; })}</tbody></table></div>
-      <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0}–{Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
+      <div className="pager"><span>Menampilkan {total ? (page - 1) * CLAIMS_PAGE_SIZE + 1 : 0} sampai {Math.min(page * CLAIMS_PAGE_SIZE, total)} dari {total} klaim</span><div className="pager-controls"><button disabled={page === 1} aria-label="Ke halaman awal" onClick={() => setPage(1)}>« Awal</button><button disabled={page === 1} aria-label="Ke halaman sebelumnya" onClick={() => setPage(page - 1)}>‹ Sebelumnya</button><span className="pager-status">Halaman {page} dari {totalPages}</span><button disabled={page === totalPages} aria-label="Ke halaman berikutnya" onClick={() => setPage(page + 1)}>Berikutnya ›</button><button disabled={page === totalPages} aria-label="Ke halaman terakhir" onClick={() => setPage(totalPages)}>Akhir »</button></div></div>
     </section>
     <AboutPanel />
     {progress && <VerdictBar facility={facility} progress={progress} onSaved={() => setRefreshKey((k) => k + 1)} />}
@@ -668,11 +666,11 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
   const setQueryAndReset = (value: string) => { setQuery(value); setPage(1); };
   const setLayananAndReset = (value: string) => { setLayanan(value); setPage(1); };
   const setRiskAndReset = (value: string) => { setRisk(value); setPage(1); };
-  if (facility) return <><Header onLogout={onLogout} active="bukti" /><main className="app-main"><DetailView facility={facility} onBack={showMain} source={source} /></main></>;
-  return <><Header onLogout={onLogout} active="prioritas" /><main className="app-main" id="view-main">
+  if (facility) return <><Header onLogout={onLogout} onHome={showMain} active="bukti" /><main className="app-main"><DetailView facility={facility} onBack={showMain} source={source} /></main></>;
+  return <><Header onLogout={onLogout} onHome={showMain} active="prioritas" /><main className="app-main" id="view-main">
 <div className="crumbs-row"><div className="crumbs">Ruang Kerja Auditor <span>/</span> <b>Prioritas Pemeriksaan</b></div><div className="last-sync"><span className="status-dot" /> Data terakhir diperbarui <strong>04 Sep 2026, 18:15 WIB</strong></div></div>
-<div className="page-intro"><div><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini - unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
-{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah dinilai siklus ini. Periksa sama seriusnya dengan daftar prioritas - penilaian dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} />
+<div className="page-intro"><div><h2>Prioritas pemeriksaan faskes</h2><p className="intro-copy">Gunakan ambang skor dan filter untuk menyusun antrean audit berdasarkan bukti anomali.</p></div><div><div className="intro-actions"><div className="source-toggle" role="group" aria-label="Sumber data"><button className={`source-opt ${source === "sintetis" ? "src-active" : ""}`} type="button" onClick={() => setSource("sintetis")}>Data Sintetis</button><button className={`source-opt ${source === "bpjs" ? "src-active" : ""}`} type="button" onClick={() => setSource("bpjs")}>Data BPJS</button></div><button className="ghost-button sample-button" type="button" onClick={drawRandom} disabled={randomLoading || source === "bpjs"}><Shuffle size={16} /> {randomLoading ? "Mengambil…" : "Sampel kontrol acak"}</button></div></div></div>{source === "bpjs" && <div className="bpjs-notice"><ShieldCheck size={16} /><span>Menampilkan <b>Data Sampel Reguler Edisi 2025</b> (resmi BPJS): 1,7 juta klaim asli 2024. ID rumah sakit dihapus oleh BPJS dalam sampel ini, sehingga unit tampilan adalah <b>kelompok faskes</b> (kabupaten × kelas × kepemilikan), bukan rumah sakit per satuan. Mode ini hanya untuk membaca bukti.</span></div>}
+{randomOpen && <section className="panel random-panel"><div className="panel-heading"><div><h2>Sampel Kontrol Acak</h2><p>20 faskes acar dari populasi penuh, dikecualikan yang sudah dinilai siklus ini. Periksa sama seriusnya dengan daftar prioritas. Penilaian dari sampel ini mencegah model hanya belajar dari pilihan sistemnya sendiri.</p></div><button className="ghost-button" type="button" onClick={() => setRandomOpen(false)}>Tutup</button></div><div className="random-grid">{randomList.map((f) => <button className="random-card" type="button" key={f.kode} onClick={() => openDetail(f.kode)}><span className="facility-code">{f.kode}</span><span className="random-rank">peringkat #{fmtNumber(f.peringkat)}</span><RiskBadge score={f.skor_gabungan} /></button>)}</div></section>}{error && <div className="empty-note">Gagal memuat data dari server. Pastikan API berjalan.</div>}{!error && faskes.length === 0 && <div className="empty-note">Memuat data faskes…</div>}{faskes.length > 0 && <><StatBlocks id="stats" items={statItems} />
 <div className="dist-strip"><h4>Distribusi risiko</h4><div className="dist-bar"><span style={{ width: `${(distHigh / distTotal) * 100}%`, background: "var(--risk-high-text)" }} /><span style={{ width: `${(distMid / distTotal) * 100}%`, background: "var(--risk-medium-text)" }} /><span style={{ width: `${(distLow / distTotal) * 100}%`, background: "var(--risk-low-text)" }} /></div><div className="dist-legend"><span><i style={{ background: "var(--risk-high-text)" }} />Tinggi <b>{fmtNumber(distHigh)}</b></span><span><i style={{ background: "var(--risk-medium-text)" }} />Sedang <b>{fmtNumber(distMid)}</b></span><span><i style={{ background: "var(--risk-low-text)" }} />Rendah <b>{fmtNumber(distLow)}</b></span></div></div>
 <PriorityTable list={filteredList} page={page} goPage={goPage} openDetail={openDetail} controls={<ControlStrip threshold={threshold} setThreshold={setThresholdAndReset} query={query} setQuery={setQueryAndReset} layanan={layanan} setLayanan={setLayananAndReset} risk={risk} setRisk={setRiskAndReset} />} /><AboutPanel /></>}</main></>;
 }
