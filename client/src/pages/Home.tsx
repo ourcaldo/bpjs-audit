@@ -651,7 +651,7 @@ function DashboardView({ onLogout }: { onLogout: () => void }) {
     { label: "Memenuhi ambang & filter", value: String(filteredList.length), sub: `${fmtNumber(filteredList.length)} dari ${fmtNumber(faskes.length)}`, icon: "filter" as const },
     { label: "Risiko tinggi", value: fmtNumber(distHigh), sub: "skor ≥ 0,85", icon: "alert" as const },
     { label: "Total klaim (RI + RJ)", value: stats ? fmtNumber(stats.klaim_ri + stats.klaim_rj) : "…", sub: source === "bpjs" ? "klaim asli 2024" : "klaim sintetis", icon: "claims" as const },
-    { label: "Estimasi biaya LOS (LOS)", value: stats ? fmtRupiah(stats.rugi) : "…", sub: source === "bpjs" ? "sample-observed" : "skala nasional", icon: "money" as const }];
+    { label: "Estimasi biaya LOS berlebih", value: stats ? fmtRupiah(stats.rugi) : "…", sub: source === "bpjs" ? "sample-observed" : "skala nasional", icon: "money" as const }];
   const openDetail = (kode: string) => { window.location.hash = `#/faskes/${kode}`; window.scrollTo({ top: 0, behavior: "smooth" }); };
   const [randomOpen, setRandomOpen] = useState(false);
   const [randomList, setRandomList] = useState<Faskes[]>([]);
